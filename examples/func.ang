@@ -1,0 +1,6 @@
+
+func sum(a, b) {
+    return a + b
+}
+
+write(sum(1, 2))

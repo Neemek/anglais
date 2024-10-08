@@ -1,0 +1,13 @@
+
+write("Hello world!")
+
+a := 1 + 2
+
+write(a)
+
+
+if a > 2 {
+    write("Hooray!! a is greater than 2!!!!")
+} else {
+    write("oh nooo!!! a is less than or equal to 2!!!!!!!!!!")
+}

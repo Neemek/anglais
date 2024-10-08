@@ -1,0 +1,19 @@
+
+write("Bonjour à tout!");
+
+if 1 == 2 {
+    # unreachable
+} else {
+    write("Hooray! One does not equal 2!");
+}
+
+for (var n = 1; n < 10; n = n + 1) {
+    write("Run number " + str(n));
+}
+
+var a = 2;
+
+write(3 * a*a + 10 / 3);
+
+
+
