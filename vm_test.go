@@ -435,9 +435,7 @@ func GetExecutionTestData() map[string]struct {
 					InstructionConstant, 0,
 					InstructionConstant, 1,
 					InstructionConstant, 2,
-					InstructionBreakpoint,
 					InstructionCall,
-					InstructionBreakpoint,
 				},
 				[]Value{
 					NumberValue(1),
@@ -450,7 +448,6 @@ func GetExecutionTestData() map[string]struct {
 								InstructionGetLocal, 0,
 								InstructionGetLocal, 1,
 								InstructionAdd,
-								InstructionBreakpoint,
 								InstructionReturn,
 							},
 							[]Value{
