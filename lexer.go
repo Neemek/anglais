@@ -291,6 +291,13 @@ func (l *Lexer) NextToken() (Token, error) {
 				l.advance()
 			}
 
+			// if the number has a float-part
+			if l.accept('.') {
+				for unicode.IsDigit(l.peek()) {
+					l.advance()
+				}
+			}
+
 			return l.makeToken(TokenNumber), nil
 		}
 
