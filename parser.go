@@ -348,6 +348,14 @@ func (p *Parser) statement() Node {
 			true,
 		}
 
+	case TokenWhile:
+		p.advance()
+
+		return &LoopNode{
+			p.condition(),
+			p.block(false),
+		}
+
 	case TokenReturn:
 		p.advance()
 
