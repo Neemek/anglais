@@ -44,17 +44,25 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 			log.Fatal(err)
 		}
 
+		if len(tokens) <= 1 {
+			log.Fatal("Empty file")
+		}
+
 		if ctx.Debug {
-			log.Println("Initialized parser")
+			log.Printf("Lexed %d tokens", len(tokens))
+
 		}
 		p := NewParser(tokens)
 
 		if ctx.Debug {
-			log.Println("Parsed tree")
+			log.Println("Initialized parser")
 		}
 
 		defer func() {
 			if r := recover(); r != nil {
+				if r != "no more tokens" { // if the panic was not caused by the parser, it should not be recovered.
+					panic(r)
+				}
 				for _, e := range p.errors {
 					e.Print(src)
 				}
@@ -62,6 +70,14 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		}()
 
 		tree := p.Parse()
+
+		// if there were parsing errors, print them out
+		if len(p.errors) > 0 {
+			for _, e := range p.errors {
+				e.Print(src)
+			}
+			log.Fatal("Parsing had errors")
+		}
 
 		if ctx.Debug {
 			log.Println("Initialized compiler")
