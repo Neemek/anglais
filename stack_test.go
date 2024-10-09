@@ -11,6 +11,7 @@ func CompareStacks[T Value](t *testing.T, expected []T, actual *Stack[T]) {
 	}
 
 	for i, v := range expected {
+		t.Logf("Comparing value at index %d", i)
 		CompareValues(t, actual.items[i], v)
 	}
 

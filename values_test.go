@@ -3,6 +3,10 @@ package main
 import "testing"
 
 func CompareValues(t *testing.T, got Value, want Value) {
+	if got == nil || want == nil {
+		t.Fatalf("a value is nil: got %v; want %v", got, want)
+	}
+
 	if got.Type() != want.Type() {
 		t.Fatalf("type mismatch: got %v want %v", got.Type(), want.Type())
 	}

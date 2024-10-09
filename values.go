@@ -89,16 +89,16 @@ func (v BoolValue) String() string {
 }
 
 // NumberValue Integer or floating-point values
-type NumberValue float32
+type NumberValue float64
 
-const NumberSize int = 32
+const NumberSize int = 64
 
 func (v NumberValue) Type() ValueType {
 	return NumberValueType
 }
 
 func (v NumberValue) String() string {
-	return strconv.FormatFloat(float64(v), 'g', -1, 32)
+	return strconv.FormatFloat(float64(v), 'g', -1, NumberSize)
 }
 
 type StringValue string

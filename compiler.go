@@ -153,8 +153,6 @@ func (c *Compiler) Compile(tree Node) {
 	case CallNodeType:
 		n := tree.(*CallNode)
 
-		c.descend()
-
 		for _, arg := range n.args {
 			c.Compile(arg)
 		}
@@ -166,9 +164,6 @@ func (c *Compiler) Compile(tree Node) {
 		if !n.keep {
 			c.add(InstructionPop)
 		}
-
-		// Only descend and remove variables that are no longer within scope when the stack is clean
-		c.ascend()
 
 	case FunctionNodeType:
 		n := tree.(*FunctionNode)
@@ -189,8 +184,6 @@ func (c *Compiler) Compile(tree Node) {
 		// reset instruction pointer (ip)
 		c.ip = 0
 
-		c.descend()
-
 		for _, p := range n.params {
 			c.registerVar(p)
 		}
@@ -204,8 +197,6 @@ func (c *Compiler) Compile(tree Node) {
 			n.params,
 			c.chunk,
 		}
-
-		c.ascend()
 
 		// restore old chunk and ip
 		c.chunk = mc
