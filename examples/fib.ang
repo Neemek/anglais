@@ -1,0 +1,17 @@
+
+# calculate fibonacci numbers with a loop
+
+x := 0
+
+n := 1
+p := 1
+
+while x < 100 {
+    f := n + p
+
+    p = n
+    n = f
+
+    write(f)
+    x = x + 1
+}
