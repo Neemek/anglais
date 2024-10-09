@@ -461,6 +461,77 @@ func GetExecutionTestData() map[string]struct {
 				NumberValue(3),
 			},
 		},
+		"function_calling_function": {
+			NewChunk(
+				[]Bytecode{
+					InstructionConstant, 3,
+					InstructionDeclareLocal, 4,
+					InstructionConstant, 0,
+					InstructionConstant, 1,
+					InstructionConstant, 2,
+					InstructionCall,
+				},
+				[]Value{
+					NumberValue(1),
+					NumberValue(2),
+					FunctionValue{
+						Name:   "sum",
+						Params: []string{"a", "b"},
+						Chunk: NewChunk(
+							[]Bytecode{
+								InstructionGetLocal, 0,
+								InstructionGetLocal, 2, InstructionCall, // square the number
+								InstructionGetLocal, 1,
+								InstructionGetLocal, 2, InstructionCall, // square the number
+								InstructionAdd,
+								InstructionReturn,
+							},
+							[]Value{
+								StringValue("a"), StringValue("b"), StringValue("square"),
+							},
+						),
+					},
+					FunctionValue{
+						Name:   "square",
+						Params: []string{"n"},
+						Chunk: NewChunk(
+							[]Bytecode{
+								InstructionGetLocal, 0,
+								InstructionGetLocal, 0,
+								InstructionMul,
+								InstructionReturn,
+							},
+							[]Value{
+								StringValue("n"),
+							},
+						),
+					},
+					StringValue("square"),
+				},
+			),
+			[]Value{
+				&VariableValue{
+					"square",
+					FunctionValue{
+						Name:   "square",
+						Params: []string{"n"},
+						Chunk: NewChunk(
+							[]Bytecode{
+								InstructionGetLocal, 0,
+								InstructionGetLocal, 0,
+								InstructionMul,
+								InstructionReturn,
+							},
+							[]Value{
+								StringValue("n"),
+							},
+						),
+					},
+					0,
+				},
+				NumberValue(5),
+			},
+		},
 	}
 }
 
