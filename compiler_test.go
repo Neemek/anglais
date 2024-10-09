@@ -225,26 +225,29 @@ func GetCompileTestData() map[string]CompileTestData {
 				NumberValue(3),
 			},
 		},
-		"sum_function": {
-			&AssignNode{
-				"sum",
-				&FunctionNode{
+		"sum_function": {&BlockNode{
+			[]Node{
+				&AssignNode{
 					"sum",
-					[]string{"a", "b"},
-					&BlockNode{
-						[]Node{
-							&ReturnNode{
-								&BinaryNode{
-									BinaryAddition,
-									&ReferenceNode{"a"},
-									&ReferenceNode{"b"},
+					&FunctionNode{
+						"sum",
+						[]string{"a", "b"},
+						&BlockNode{
+							[]Node{
+								&ReturnNode{
+									&BinaryNode{
+										BinaryAddition,
+										&ReferenceNode{"a"},
+										&ReferenceNode{"b"},
+									},
 								},
 							},
 						},
 					},
+					true,
 				},
-				true,
 			},
+		},
 			[]Value{
 				&VariableValue{
 					"sum",
@@ -262,6 +265,60 @@ func GetCompileTestData() map[string]CompileTestData {
 							},
 							[]Value{
 								StringValue("a"), StringValue("b"),
+							},
+						),
+					},
+					0,
+				},
+			},
+		},
+		"remove_func_vars": {
+			&BlockNode{
+				[]Node{
+					&AssignNode{
+						"a",
+						&FunctionNode{
+							"a",
+							[]string{},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"b",
+										&NumberNode{1},
+										true,
+									},
+									&ReturnNode{
+										&ReferenceNode{"b"},
+									},
+								},
+							},
+						},
+						true,
+					},
+					&CallNode{
+						"a",
+						[]Node{},
+						false,
+					},
+				},
+			},
+			[]Value{
+				&VariableValue{
+					"a",
+					FunctionValue{
+						"a",
+						[]string{},
+						NewChunk(
+							[]Bytecode{
+								InstructionDescend,
+								InstructionConstant, 0,
+								InstructionDeclareLocal, 1,
+								InstructionGetLocal, 1,
+								InstructionReturn,
+								InstructionAscend,
+							},
+							[]Value{
+								NumberValue(1), StringValue("b"),
 							},
 						),
 					},
