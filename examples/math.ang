@@ -1,0 +1,96 @@
+
+PI := 3.1415926535323
+
+
+# abs(x)
+# x: number
+#   Get the absolute value of a number. If x is negative, the returned
+#   value is positive and equal to `-x`. If x is positive or zero, the
+#   returned value is x.
+func abs(x) {
+    # if the number is negative
+    if x < 0 {
+        # negate it so it's positive
+        return -x
+    }
+
+    return x
+}
+
+MAX_SQRT_DX := 0.0000001
+
+# sqrt(x)
+# x: number
+#   Calculate the approximate square root using newton's method until
+#   the accuracy has increased by less than the variable `MAX_SQRT_DX`.
+func sqrt(x) {
+    ng := x
+    g := 1
+
+    while abs(g - ng) > MAX_SQRT_DX {
+        g = ng
+
+        # create new guess
+        ng = (g + x / g) / 2
+    }
+
+    return g
+}
+
+# floor(x)
+# x: number
+#   Return the whole number part of the number. if x is a whole number,
+#   the returned value is x. If x is not a whole number, the closest
+#   whole number which is less than or equal to x is returned.
+func floor(x) {
+    # todo
+}
+
+# floor(x)
+# x: number
+#   Return the whole number part of the number. if x is a whole number,
+#   the returned value is x. If x is not a whole number, the closest
+#   whole number which is greater than or equal to x is returned.
+func ceil(x) {
+    # todo
+}
+
+# round(x)
+# x: number
+#   Return the whole number part of the number. if x is a whole number,
+#   the returned value is x. If x is not a whole number, the closest
+#   whole number to x is returned. Therefore, if the decimal part is
+#   greater than or equal to .5, the number is rounded up (same as ceil),
+#   and otherwise the number is rounded down (same as floor).
+func round(x) {
+    f := floor(x)
+
+    if x - f > 0.5 {
+        return f + 1
+    }
+
+    return f
+}
+
+# sin(x)
+# x: number
+#   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
+func sin(x) {
+    # todo
+}
+
+# cos(x)
+# x: number
+#   Get the cosine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
+func cos(x) {
+    # todo
+}
+
+# tan(x)
+# x: number
+#   Get the tangent of an angle (in radians). https://en.wikipedia.org/wiki/Tangent
+func tan(x) {
+    # todo
+}
+
+
