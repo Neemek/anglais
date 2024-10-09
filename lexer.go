@@ -185,6 +185,16 @@ func (l *Lexer) NextToken() (Token, error) {
 	case '*':
 		return l.makeToken(TokenStar), nil
 	case '/':
+		if l.match('*') {
+			for !l.isAtEnd() {
+				if l.match('*') && l.match('/') {
+					break
+				}
+				l.advance()
+			}
+			return l.NextToken()
+		}
+
 		return l.makeToken(TokenSlash), nil
 	case '(':
 		return l.makeToken(TokenOpenParenthesis), nil
