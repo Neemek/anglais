@@ -391,6 +391,11 @@ func (p *Parser) statement() Node {
 			p.condition(),
 		}
 
+	case TokenBreakpoint:
+		p.advance()
+
+		return &BreakpointNode{}
+
 	default:
 		p.error("invalid statement", p.curr)
 		p.advance()

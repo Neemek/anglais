@@ -27,6 +27,7 @@ const (
 	CallNodeType
 	FunctionNodeType
 	ReturnNodeType
+	BreakpointNodeType
 )
 
 func (n NodeType) String() string {
@@ -291,4 +292,14 @@ func (n ReturnNode) Type() NodeType {
 
 func (n ReturnNode) String() string {
 	return fmt.Sprintf("return %s", n.value)
+}
+
+type BreakpointNode struct{}
+
+func (n BreakpointNode) Type() NodeType {
+	return BreakpointNodeType
+}
+
+func (n BreakpointNode) String() string {
+	return "breakpoint"
 }
