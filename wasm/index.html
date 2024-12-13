@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Webrunner</title>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+
+        WebAssembly.instantiateStreaming(fetch("anglais.wasm"), go.importObject).then((result) => {
+            go.run(result.instance)
+        })
+    </script>
+
+    <script defer>
+        // https://microsoft.github.io/monaco-editor/monarch.html
+
+        let doRun = true;
+
+        function startCode() {
+            const codeInput = document.getElementById("code_input")
+            const output = document.getElementById("output")
+            const errorOutput = document.getElementById("error")
+
+            // reset output
+            output.innerText = ""
+
+            output.style.backgroundColor = '#FFF'
+            const promise = interpret(codeInput.value, out => output.innerText += out)
+
+            promise.then(() => {
+                console.log("Successfully executed code")
+                output.style.backgroundColor = '#DFD'
+            }).catch(e => {
+                console.log("Executing code caused error")
+                output.style.backgroundColor = '#FDD'
+                errorOutput.innerText = e
+            })
+        }
+
+        async function interpret(source, output) {
+            let result = await window.run(source, out => {
+                output(out)
+            }, () => doRun)
+
+            console.log(`Got result ${result} from executing code`)
+
+            if (result instanceof Error) {
+                throw result
+            }
+
+            return result
+        }
+    </script>
+
+    <style>
+        .main {
+            display: flex;
+            flex-direction: column;
+        }
+        .code {
+            font-family: monospace;
+            width: auto;
+            margin: 0.5rem
+        }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <label for="code_input">Code</label>
+        <textarea class="code" name="code" id="code_input" rows="10">write("hello world")</textarea>
+        <button onclick="startCode()">Run</button>
+        <h1>Output</h1>
+        <p id="error"></p>
+        <p id="output">
+
+        </p>
+    </div>
+</body>
+</html>
