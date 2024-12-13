@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"strconv"
@@ -605,7 +605,7 @@ func TestParser_Parse(t *testing.T) {
 			tree := p.Parse()
 
 			if p.hadError {
-				t.Fatalf("Unexpected error(s): %s", p.errors)
+				t.Fatalf("Unexpected error(s): %s", p.Errors)
 			}
 
 			t.Logf("Checking parsed tree")

@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"fmt"
@@ -134,6 +134,9 @@ const (
 	BinarySubtraction
 	BinaryMultiplication
 	BinaryDivision
+
+	BinaryAnd
+	BinaryOr
 
 	// Comparison
 	BinaryEquality

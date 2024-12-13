@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"testing"
@@ -46,8 +46,8 @@ func TestAll(t *testing.T) {
 			tree := p.Parse()
 
 			if p.hadError {
-				for _, e := range p.errors {
-					e.Print(tc.src)
+				for _, e := range p.Errors {
+					print(e.Format(tc.src))
 				}
 				t.Fatalf("parser had error(s)")
 			}
@@ -58,10 +58,10 @@ func TestAll(t *testing.T) {
 			t.Log("Compiling parse tree")
 			c.Compile(tree)
 
-			printChunk(t, name, c.chunk)
+			printChunk(t, name, c.Chunk)
 
 			t.Log("Initializing vm")
-			vm := NewVM(c.chunk, 256, 256)
+			vm := NewVM(c.Chunk, 256, 256)
 
 			t.Log("Running bytecode")
 			for vm.HasNext() && vm.Next() {
@@ -87,7 +87,7 @@ func BenchmarkAll(b *testing.B) {
 			c := NewCompiler()
 			c.Compile(tree)
 
-			vm := NewVM(c.chunk, 256, 256)
+			vm := NewVM(c.Chunk, 256, 256)
 
 			for vm.HasNext() && vm.Next() {
 			}

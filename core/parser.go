@@ -1,10 +1,11 @@
-package main
+package core
 
 import (
 	"errors"
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 )
 
 type ParsingError struct {
@@ -13,7 +14,9 @@ type ParsingError struct {
 }
 
 // Print a rich and informative error
-func (p *ParsingError) Print(src string) {
+func (p *ParsingError) Format(src string) string {
+	builder := strings.Builder{}
+
 	lineNumber := 1
 	lineBeginning := 0
 	for i := 0; i < int(p.Causer.Start); i++ {
@@ -31,20 +34,23 @@ func (p *ParsingError) Print(src string) {
 		}
 	}
 
-	print(" \t v ")
-	println(p.Description)
+	builder.WriteString(" \t v ")
+	builder.WriteString(p.Description)
+	builder.WriteRune('\n')
 
-	println(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, src[lineBeginning:lineEnd]))
+	builder.WriteString(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, src[lineBeginning:lineEnd]))
 
-	print("\t ^")
+	builder.WriteString("\t ^")
 	for i := lineBeginning; i <= int(p.Causer.Start); i++ {
-		print(" ")
+		builder.WriteRune(' ')
 	}
 
 	for i := 0; i < int(p.Causer.Length); i++ {
-		print("^")
+		builder.WriteRune('^')
 	}
-	println()
+	builder.WriteRune('\n')
+
+	return builder.String()
 }
 
 type Parser struct {
@@ -54,7 +60,7 @@ type Parser struct {
 	pos    Pos
 
 	hadError bool
-	errors   []ParsingError
+	Errors   []ParsingError
 }
 
 func NewParser(tokens []Token) *Parser {
@@ -62,7 +68,7 @@ func NewParser(tokens []Token) *Parser {
 		tokens:   tokens,
 		pos:      0,
 		hadError: false,
-		errors:   make([]ParsingError, 0),
+		Errors:   make([]ParsingError, 0),
 	}
 }
 
@@ -99,7 +105,7 @@ func (p *Parser) accept(tokenType TokenType) bool {
 func (p *Parser) expect(tokenType TokenType) {
 	if !p.accept(tokenType) {
 		p.error("Expected token "+tokenType.String()+", got "+p.curr.Type.String(), p.curr)
-		p.advance() // just move on
+		p.advance()
 	}
 }
 
@@ -124,7 +130,7 @@ func (p *Parser) advance() {
 
 func (p *Parser) error(error string, causer *Token) {
 	p.hadError = true
-	p.errors = append(p.errors, ParsingError{
+	p.Errors = append(p.Errors, ParsingError{
 		Description: error,
 		Causer:      causer,
 	})
@@ -257,7 +263,7 @@ func (p *Parser) term() Node {
 	return left
 }
 
-func (p *Parser) condition() Node {
+func (p *Parser) comparison() Node {
 	left := p.term()
 	op := BinaryEquality
 
@@ -284,6 +290,28 @@ func (p *Parser) condition() Node {
 		op,
 		left,
 		p.term(),
+	}
+}
+
+func (p *Parser) condition() Node {
+	left := p.comparison()
+	op := BinaryEquality
+
+	switch (*p.curr).Type {
+	case TokenDoubleAmpersand:
+		op = BinaryAnd
+	case TokenDoublePipe:
+		op = BinaryOr
+	default:
+		return left
+	}
+
+	p.advance()
+
+	return &BinaryNode{
+		op,
+		left,
+		p.comparison(),
 	}
 }
 

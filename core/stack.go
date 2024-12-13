@@ -1,4 +1,4 @@
-package main
+package core
 
 type Stack[T any] struct {
 	Current Pos

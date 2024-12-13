@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/alecthomas/kong"
 	"log"
+	"neemek.com/anglais/core"
 	"os"
 )
 
@@ -26,14 +27,14 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		return err
 	}
 
-	var chunk *Chunk
+	var chunk *core.Chunk
 	if !cmd.Bytecode {
 		src := string(f)
 
 		if ctx.Debug {
 			log.Println("Initialized lexer")
 		}
-		l := NewLexer(src)
+		l := core.NewLexer(src)
 
 		if ctx.Debug {
 			log.Println("Lexing all tokens")
@@ -52,7 +53,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 			log.Printf("Lexed %d tokens", len(tokens))
 
 		}
-		p := NewParser(tokens)
+		p := core.NewParser(tokens)
 
 		if ctx.Debug {
 			log.Println("Initialized parser")
@@ -63,8 +64,8 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 				if r != "no more tokens" { // if the panic was not caused by the parser, it should not be recovered.
 					panic(r)
 				}
-				for _, e := range p.errors {
-					e.Print(src)
+				for _, e := range p.Errors {
+					print(e.Format(src))
 				}
 			}
 		}()
@@ -72,9 +73,9 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		tree := p.Parse()
 
 		// if there were parsing errors, print them out
-		if len(p.errors) > 0 {
-			for _, e := range p.errors {
-				e.Print(src)
+		if len(p.Errors) > 0 {
+			for _, e := range p.Errors {
+				print(e.Format(src))
 			}
 			log.Fatal("Parsing had errors")
 		}
@@ -82,26 +83,26 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		if ctx.Debug {
 			log.Println("Initialized compiler")
 		}
-		c := NewCompiler()
+		c := core.NewCompiler()
 
 		if ctx.Debug {
 			log.Println("Compiling parse tree")
 		}
 		c.Compile(tree)
 
-		chunk = c.chunk
+		chunk = c.Chunk
 	} else {
 		if ctx.Debug {
 			log.Println("Registering GOB types")
 		}
 
-		RegisterGOBTypes()
+		core.RegisterGOBTypes()
 
 		if ctx.Debug {
 			log.Println("Deserializing file")
 		}
 
-		chunk = DeserializeChunk(f)
+		chunk = core.DeserializeChunk(f)
 	}
 
 	if ctx.Debug {
@@ -111,7 +112,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 
 		log.Println("Initialized VM")
 	}
-	vm := NewVM(chunk, 256, 256)
+	vm := core.NewVM(chunk, 256, 256)
 
 	if ctx.Debug {
 		log.Println("Executing bytecode")
@@ -129,7 +130,7 @@ type CompileCmd struct {
 	Output string `arg:"" name:"output" optional:"" help:"File path to output bytecode to" type:"path"`
 }
 
-func (cmd *CompileCmd) Run(ctx *Context) error {
+func (cmd *CompileCmd) Compile(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Reading file")
 	}
@@ -145,7 +146,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Initializing lexer")
 	}
-	l := NewLexer(src)
+	l := core.NewLexer(src)
 
 	if ctx.Debug {
 		log.Println("Lexing all tokens")
@@ -159,7 +160,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Initializing parser")
 	}
-	p := NewParser(tokens)
+	p := core.NewParser(tokens)
 
 	if ctx.Debug {
 		log.Println("Parsing tree")
@@ -169,7 +170,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Initialized compiler")
 	}
-	c := NewCompiler()
+	c := core.NewCompiler()
 
 	if ctx.Debug {
 		log.Println("Compiling parse tree")
@@ -181,13 +182,13 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 		log.Println("Registering GOB types")
 	}
 
-	RegisterGOBTypes()
+	core.RegisterGOBTypes()
 
 	if ctx.Debug {
 		log.Println("Serializing chunk")
 	}
 
-	serialized := c.chunk.Serialize()
+	serialized := c.Chunk.Serialize()
 
 	if ctx.Debug {
 		log.Println("Writing file")

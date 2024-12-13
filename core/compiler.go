@@ -1,9 +1,7 @@
-package main
-
-import "log"
+package core
 
 type Compiler struct {
-	chunk *Chunk
+	Chunk *Chunk
 	ip    Pos
 	scope Pos
 
@@ -17,7 +15,7 @@ type LocalVariable struct {
 
 func NewCompiler() *Compiler {
 	c := &Compiler{
-		chunk: NewChunk(make([]Bytecode, 0), make([]Value, 0)),
+		Chunk: NewChunk(make([]Bytecode, 0), make([]Value, 0)),
 		ip:    0,
 		scope: 0,
 		stack: NewStack[LocalVariable](256),
@@ -27,17 +25,17 @@ func NewCompiler() *Compiler {
 }
 
 func (c *Compiler) add(instruction Bytecode) {
-	for len(c.chunk.Bytecode) <= int(c.ip) {
-		c.chunk.Bytecode = append(c.chunk.Bytecode, 0)
+	for len(c.Chunk.Bytecode) <= int(c.ip) {
+		c.Chunk.Bytecode = append(c.Chunk.Bytecode, 0)
 	}
 
-	c.chunk.Bytecode[c.ip] = instruction
+	c.Chunk.Bytecode[c.ip] = instruction
 
 	c.advance(1)
 }
 
 func (c *Compiler) addConstant(value Value) {
-	chunk := c.chunk
+	chunk := c.Chunk
 	for i := 0; i < len(chunk.Constants); i++ {
 		if chunk.Constants[i] == value {
 			c.add(Bytecode(i))
@@ -168,19 +166,19 @@ func (c *Compiler) Compile(tree Node) {
 	case FunctionNodeType:
 		n := tree.(*FunctionNode)
 
-		fi := len(c.chunk.Constants)
-		c.chunk.Constants = append(c.chunk.Constants, nil)
+		fi := len(c.Chunk.Constants)
+		c.Chunk.Constants = append(c.Chunk.Constants, nil)
 
 		c.add(InstructionConstant)
 		c.add(Bytecode(fi))
 
 		// keep track of main chunk
-		mc := c.chunk
+		mc := c.Chunk
 		// and ip
 		mip := c.ip
 
 		// assign a new empty chunk
-		c.chunk = NewChunk(make([]Bytecode, 0), make([]Value, 0))
+		c.Chunk = NewChunk(make([]Bytecode, 0), make([]Value, 0))
 		// reset instruction pointer (ip)
 		c.ip = 0
 
@@ -195,16 +193,19 @@ func (c *Compiler) Compile(tree Node) {
 		mc.Constants[fi] = FunctionValue{
 			n.name,
 			n.params,
-			c.chunk,
+			c.Chunk,
 		}
 
 		// restore old chunk and ip
-		c.chunk = mc
+		c.Chunk = mc
 		c.ip = mip
 
 	case ReturnNodeType:
 		c.Compile(tree.(*ReturnNode).value)
 		c.add(InstructionReturn)
+
+	case BreakpointNodeType:
+		c.add(InstructionBreakpoint)
 	}
 }
 
@@ -233,18 +234,20 @@ func (c *Compiler) compileBinary(binary *BinaryNode) {
 		c.add(InstructionLessOrEqual)
 	case BinaryGreaterEqual:
 		c.add(InstructionGreaterOrEqual)
+	case BinaryAnd:
+		c.add(InstructionAnd)
+	case BinaryOr:
+		c.add(InstructionOr)
 	}
 }
 
 func (c *Compiler) getVar(name string) {
-	if c.isLocal(name) {
-		c.add(InstructionGetLocal)
-		c.addConstant(StringValue(name))
-	} else if c.isGlobal(name) {
+	if c.isGlobal(name) {
 		c.add(InstructionGetGlobal)
 		c.addConstant(StringValue(name))
 	} else {
-		log.Fatalf("compiling: undefined variable %s", name)
+		c.add(InstructionGetLocal)
+		c.addConstant(StringValue(name))
 	}
 }
 

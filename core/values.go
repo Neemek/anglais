@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"fmt"
@@ -126,9 +126,9 @@ func (v FunctionValue) String() string {
 }
 
 type BuiltinFunctionValue struct {
-	name       string
-	parameters []string
-	f          func(map[string]Value) Value
+	Name       string
+	Parameters []string
+	F          func(map[string]Value) Value
 }
 
 func (v BuiltinFunctionValue) Type() ValueType {
@@ -136,7 +136,7 @@ func (v BuiltinFunctionValue) Type() ValueType {
 }
 
 func (v BuiltinFunctionValue) String() string {
-	return fmt.Sprintf("<function name=%s builtin>", v.name)
+	return fmt.Sprintf("<function name=%s builtin>", v.Name)
 }
 
 // VariableValue a value wrapper for variables kept on the stack

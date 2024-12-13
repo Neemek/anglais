@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"bytes"
@@ -74,6 +74,11 @@ const (
 
 	// InstructionSwap swap the two top items on the stack (1, 2 -> 2, 1)
 	InstructionSwap
+
+	// InstructionAnd pop two booleans and push true if both are true
+	InstructionAnd
+	// InstructionOr pop two booleans and push true if either are true
+	InstructionOr
 
 	// InstructionConstant Push a constant to the stack (2 bytes, second = constant index)
 	InstructionConstant
@@ -152,6 +157,10 @@ func (b Bytecode) String() string {
 		return "STRING_CONCATENATION"
 	case InstructionSwap:
 		return "SWAP"
+	case InstructionAnd:
+		return "AND"
+	case InstructionOr:
+		return "OR"
 	case InstructionBreakpoint:
 		return "BREAKPOINT"
 	}
@@ -263,6 +272,14 @@ var DefaultGlobals = map[string]Value{
 			return nil
 		},
 	},
+	"print": BuiltinFunctionValue{
+		"print",
+		[]string{"value"},
+		func(v map[string]Value) Value {
+			print(v["value"].String())
+			return nil
+		},
+	},
 }
 
 func NewVM(chunk *Chunk, stackSize Pos, callstackSize Pos) *VM {
@@ -345,6 +362,12 @@ func (vm *VM) Next() bool {
 		b := vm.stack.Pop().(BoolValue)
 		vm.stack.Push(!b)
 
+	case InstructionAnd:
+		vm.stack.Push(vm.stack.Pop().(BoolValue) && vm.stack.Pop().(BoolValue))
+
+	case InstructionOr:
+		vm.stack.Push(vm.stack.Pop().(BoolValue) || vm.stack.Pop().(BoolValue))
+
 	case InstructionLess:
 		r := vm.stack.Pop().(NumberValue)
 		l := vm.stack.Pop().(NumberValue)
@@ -381,7 +404,7 @@ func (vm *VM) Next() bool {
 			})
 
 			for i := len(f.Params) - 1; i >= 0; i-- {
-				p := vm.stack.Current - Pos(i) - 1
+				p := vm.stack.Current - Pos(len(f.Params)) + Pos(i)
 				vm.stack.items[p] = &VariableValue{
 					f.Params[i],
 					vm.stack.items[p],
@@ -396,11 +419,11 @@ func (vm *VM) Next() bool {
 		case BuiltinFunctionValue:
 			args := map[string]Value{}
 
-			for i := len(f.parameters) - 1; i >= 0; i-- {
-				args[f.parameters[i]] = vm.stack.Pop()
+			for i := len(f.Parameters) - 1; i >= 0; i-- {
+				args[f.Parameters[i]] = vm.stack.Pop()
 			}
 
-			vm.stack.Push(f.f(args))
+			vm.stack.Push(f.F(args))
 		default:
 			vm.error(fmt.Sprintf("value called is not a function (%s)", v.String()))
 			return false
@@ -569,4 +592,12 @@ func (vm *VM) NextU16() uint16 {
 
 func (vm *VM) error(error string) {
 	log.Fatal(error)
+}
+
+func (vm *VM) SetGlobal(name string, value Value) {
+	vm.globals[name] = value
+}
+
+func (vm *VM) GetGlobal(name string) Value {
+	return vm.globals[name]
 }

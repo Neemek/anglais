@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ func TestNewCompiler(t *testing.T) {
 		t.Error("compiler ip doesn't start at zero")
 	}
 
-	if c.chunk == nil {
+	if c.Chunk == nil {
 		t.Error("compiler chunk initialized to nil")
 	}
 }
@@ -361,10 +361,10 @@ func TestCompile(t *testing.T) {
 			c.Compile(testCase.tree)
 
 			t.Log("Initializing vm")
-			vm := NewVM(c.chunk, 256, 256)
+			vm := NewVM(c.Chunk, 256, 256)
 
 			t.Log("Printing chunk for debug")
-			printChunk(t, name, c.chunk)
+			printChunk(t, name, c.Chunk)
 
 			t.Log("Executing bytecode")
 			for vm.HasNext() && vm.Next() {
@@ -394,12 +394,12 @@ func TestCompiler_AddU16(t *testing.T) {
 			c := NewCompiler()
 			c.addU16(uint16(i))
 
-			if c.chunk.Bytecode[0] != Bytecode(i>>8) {
-				t.Errorf("first 8 bits don't match (got %s, expected %b)", c.chunk.Bytecode[0], byte(i>>8))
+			if c.Chunk.Bytecode[0] != Bytecode(i>>8) {
+				t.Errorf("first 8 bits don't match (got %s, expected %b)", c.Chunk.Bytecode[0], byte(i>>8))
 			}
 
-			if c.chunk.Bytecode[1] != Bytecode(i&0xff) {
-				t.Errorf("last 8 bits don't match (got %s, expected %b)", c.chunk.Bytecode[1], byte(i&0xff))
+			if c.Chunk.Bytecode[1] != Bytecode(i&0xff) {
+				t.Errorf("last 8 bits don't match (got %s, expected %b)", c.Chunk.Bytecode[1], byte(i&0xff))
 			}
 		})
 	}
@@ -432,7 +432,7 @@ func TestCompiler_CleanStack(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(tc.tree)
 
-			vm := NewVM(c.chunk, 256, 256)
+			vm := NewVM(c.Chunk, 256, 256)
 			for vm.HasNext() && vm.Next() {
 			}
 

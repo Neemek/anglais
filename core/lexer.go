@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"errors"
@@ -60,6 +60,10 @@ const (
 	TokenGreaterThanOrEqual
 	TokenLessThanOrEqual
 
+	TokenDoubleAmpersand
+	TokenDoublePipe
+
+	TokenBreakpoint
 	TokenEOF
 	TokenError
 )
@@ -134,6 +138,12 @@ func (t TokenType) String() string {
 		return "comma"
 	case TokenDot:
 		return "dot"
+	case TokenBreakpoint:
+		return "breakpoint"
+	case TokenDoubleAmpersand:
+		return "double ampersand"
+	case TokenDoublePipe:
+		return "double pipe"
 	}
 
 	return "UNDEFINED TOKENTYPE STRING CONVERSION"
@@ -241,6 +251,20 @@ func (l *Lexer) NextToken() (Token, error) {
 
 		return l.makeToken(TokenLessThan), nil
 
+	case '&':
+		if l.accept('&') {
+			return l.makeToken(TokenDoubleAmpersand), nil
+		}
+
+		return l.makeToken(TokenError), errors.New("malformed token (got '&', expected '&' to follow)")
+
+	case '|':
+		if l.accept('|') {
+			return l.makeToken(TokenDoublePipe), nil
+		}
+
+		return l.makeToken(TokenError), errors.New("malformed token (got '|', expected '|' to follow)")
+
 	case '"':
 		// include ending quote
 		for !l.accept('"') {
@@ -281,6 +305,8 @@ func (l *Lexer) NextToken() (Token, error) {
 				return l.makeToken(TokenFunc), nil
 			case "while":
 				return l.makeToken(TokenWhile), nil
+			case "breakpoint":
+				return l.makeToken(TokenBreakpoint), nil
 			case "return":
 				return l.makeToken(TokenReturn), nil
 			default:

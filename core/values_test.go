@@ -1,4 +1,4 @@
-package main
+package core
 
 import "testing"
 
@@ -56,22 +56,22 @@ func CompareValues(t *testing.T, got Value, want Value) {
 		n := got.(BuiltinFunctionValue)
 		m := want.(BuiltinFunctionValue)
 
-		if n.name != m.name {
-			t.Errorf("builtin function name mismatch: got %v, want %v", n.name, m.name)
+		if n.Name != m.Name {
+			t.Errorf("builtin function name mismatch: got %v, want %v", n.Name, m.Name)
 		}
 
-		if len(n.parameters) != len(m.parameters) {
-			t.Errorf("builtin function parameter count mismatch: got %v, want %v", n.parameters, m.parameters)
+		if len(n.Parameters) != len(m.Parameters) {
+			t.Errorf("builtin function parameter count mismatch: got %v, want %v", n.Parameters, m.Parameters)
 		}
 
-		for i, v := range n.parameters {
-			if v != m.parameters[i] {
-				t.Errorf("builtin function parameter %d mismatch: got %v, want %v", i, v, m.parameters[i])
+		for i, v := range n.Parameters {
+			if v != m.Parameters[i] {
+				t.Errorf("builtin function parameter %d mismatch: got %v, want %v", i, v, m.Parameters[i])
 			}
 		}
 
-		if &n.f != &m.f {
-			t.Errorf("builtin function f mismatch: got %v, want %v", &n.f, &m.f)
+		if &n.F != &m.F {
+			t.Errorf("builtin function f mismatch: got %v, want %v", &n.F, &m.F)
 		}
 	case VariableValueType:
 		n := got.(*VariableValue)
