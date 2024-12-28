@@ -150,7 +150,7 @@ func (t TokenType) String() string {
 }
 
 type Lexer struct {
-	src     string
+	src     []rune
 	start   Pos
 	current Pos
 	line    Pos
@@ -158,7 +158,7 @@ type Lexer struct {
 
 func NewLexer(src string) *Lexer {
 	return &Lexer{
-		src:     src,
+		src:     []rune(src),
 		start:   0,
 		current: 0,
 		line:    0,
@@ -288,7 +288,7 @@ func (l *Lexer) NextToken() (Token, error) {
 				l.advance()
 			}
 
-			switch l.src[l.start:l.current] {
+			switch string(l.src[l.start:l.current]) {
 			case "true":
 				return l.makeToken(TokenTrue), nil
 			case "false":
@@ -357,7 +357,7 @@ func (l *Lexer) Tokenize() ([]Token, error) {
 }
 
 func (l *Lexer) makeToken(t TokenType) Token {
-	return NewToken(t, l.start, l.current-l.start, l.line, l.src[l.start:l.current])
+	return NewToken(t, l.start, l.current-l.start, l.line, string(l.src[l.start:l.current]))
 }
 
 func (l *Lexer) peek() rune {
@@ -365,7 +365,7 @@ func (l *Lexer) peek() rune {
 		return 0
 	}
 
-	return []rune(l.src)[l.current]
+	return l.src[l.current]
 }
 
 func (l *Lexer) match(c rune) bool {
@@ -390,7 +390,7 @@ func (l *Lexer) advance() {
 		return
 	}
 
-	if []rune(l.src)[l.current] == '\n' {
+	if l.src[l.current] == '\n' {
 		l.line++
 	}
 
@@ -398,7 +398,7 @@ func (l *Lexer) advance() {
 }
 
 func (l *Lexer) isAtEnd() bool {
-	return l.current >= Pos(len([]rune(l.src)))
+	return l.current >= Pos(len(l.src))
 }
 
 func (l *Lexer) skipWhitespace() {

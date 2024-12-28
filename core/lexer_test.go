@@ -167,7 +167,7 @@ func TestNewLexer(t *testing.T) {
 		t.Errorf("Lexer current position was not initialized correctly.")
 	}
 
-	if lex.src != "example source" {
+	if string(lex.src) != "example source" {
 		t.Errorf("Lexer lexer was not initialized correctly.")
 	}
 
