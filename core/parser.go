@@ -40,7 +40,7 @@ func (p *ParsingError) Format(src string) string {
 
 	builder.WriteString(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, src[lineBeginning:lineEnd]))
 
-	builder.WriteString("\t ^")
+	builder.WriteString("\n\t ^")
 	for i := lineBeginning; i <= int(p.Causer.Start); i++ {
 		builder.WriteRune(' ')
 	}
