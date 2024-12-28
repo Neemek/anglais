@@ -65,7 +65,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 					panic(r)
 				}
 				for _, e := range p.Errors {
-					print(e.Format(src))
+					print(e.Format([]rune(src)))
 				}
 			}
 		}()
@@ -75,7 +75,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		// if there were parsing errors, print them out
 		if len(p.Errors) > 0 {
 			for _, e := range p.Errors {
-				print(e.Format(src))
+				print(e.Format([]rune(src)))
 			}
 			log.Fatal("Parsing had errors")
 		}

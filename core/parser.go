@@ -14,7 +14,7 @@ type ParsingError struct {
 }
 
 // Print a rich and informative error
-func (p *ParsingError) Format(src string) string {
+func (p *ParsingError) Format(src []rune) string {
 	builder := strings.Builder{}
 
 	lineNumber := 1
@@ -38,7 +38,7 @@ func (p *ParsingError) Format(src string) string {
 	builder.WriteString(p.Description)
 	builder.WriteRune('\n')
 
-	builder.WriteString(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, src[lineBeginning:lineEnd]))
+	builder.WriteString(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, string(src[lineBeginning:lineEnd])))
 
 	builder.WriteString("\n\t ^")
 	for i := lineBeginning; i <= int(p.Causer.Start); i++ {
