@@ -555,7 +555,7 @@ func (p *Parser) parseArgs() ([]Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			args = append(args)
+			args = append(args, c)
 		}
 	}
 
