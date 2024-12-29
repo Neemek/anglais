@@ -261,6 +261,7 @@ type Call struct {
 	ip          Pos
 	stackEnd    Pos
 	variableEnd Pos
+	scope       Pos
 }
 
 var DefaultGlobals = map[string]Value{
@@ -305,13 +306,16 @@ func (vm *VM) Next() bool {
 			v := vm.stack.Pop()
 			c := vm.call.Pop()
 
-			// reset stack current and variable end
+			// reset stack current and variable end and scope
 			vm.variableEnd = c.variableEnd
 			vm.stack.Current = c.stackEnd
+			vm.scope = c.scope
 
 			// reset to calling position
 			vm.ip = c.ip
 			vm.chunk = c.chunk
+
+			vm.purgeVars()
 
 			vm.stack.Push(v)
 		}
@@ -401,8 +405,10 @@ func (vm *VM) Next() bool {
 				ip:          vm.ip,
 				stackEnd:    vm.stack.Current - Pos(len(f.Params)),
 				variableEnd: vm.variableEnd,
+				scope:       vm.scope,
 			})
 
+			// TODO Fix the variables sometimes being wrongly assigned
 			for i := len(f.Params) - 1; i >= 0; i-- {
 				p := vm.stack.Current - Pos(len(f.Params)) + Pos(i)
 				vm.stack.items[p] = &VariableValue{
@@ -544,6 +550,11 @@ func (vm *VM) ascend() {
 		panic("invalid scope")
 	}
 
+	vm.purgeVars()
+}
+
+// purgeVars remove all variables not within scope
+func (vm *VM) purgeVars() {
 	for ; vm.variableEnd > 0 && vm.stack.items[vm.variableEnd-1].(*VariableValue).scope > vm.scope; vm.variableEnd-- {
 		vm.stack.Pop()
 	}
