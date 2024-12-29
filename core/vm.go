@@ -564,7 +564,11 @@ func (vm *VM) addVar(name string, value Value) {
 
 func (vm *VM) getVar(name string) *VariableValue {
 	for i := vm.variableEnd - 1; i >= 0; i-- {
-		v := vm.stack.items[i].(*VariableValue)
+		v, ok := vm.stack.items[i].(*VariableValue)
+
+		if !ok {
+			continue
+		}
 
 		if v.name == name {
 			return v
