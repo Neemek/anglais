@@ -1,6 +1,6 @@
 
-PI := 3.1415926535323
-
+PI := 3.14159265358979323
+E := 2.718281828459045235360287471352
 
 # abs(x)
 # x: number
@@ -46,7 +46,7 @@ func floor(x) {
     # todo
 }
 
-# floor(x)
+# ceil(x)
 # x: number
 #   Return the whole number part of the number. if x is a whole number,
 #   the returned value is x. If x is not a whole number, the closest
@@ -57,11 +57,7 @@ func ceil(x) {
 
 # round(x)
 # x: number
-#   Return the whole number part of the number. if x is a whole number,
-#   the returned value is x. If x is not a whole number, the closest
-#   whole number to x is returned. Therefore, if the decimal part is
-#   greater than or equal to .5, the number is rounded up (same as ceil),
-#   and otherwise the number is rounded down (same as floor).
+#   Return the closest whole number to the value x.
 func round(x) {
     f := floor(x)
 
@@ -73,24 +69,115 @@ func round(x) {
 }
 
 # sin(x)
-# x: number
+# x: number; an angle in radians
 #   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
 func sin(x) {
     # todo
 }
 
 # cos(x)
-# x: number
+# x: number; an angle in radians
 #   Get the cosine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
 func cos(x) {
     # todo
 }
 
 # tan(x)
-# x: number
-#   Get the tangent of an angle (in radians). https://en.wikipedia.org/wiki/Tangent
+# x: number; an angle in radians
+#   Get the tangent of an angle. https://en.wikipedia.org/wiki/Tangent
 func tan(x) {
     # todo
 }
 
+# mod(x, n)
+# x: number; any number
+# n: number; the number to divide by
+#   Return the rest from a division of x by n.
+func mod(x, n) {
+    if x == 0 {
+        return 0
+    }
 
+    if x < 0 {
+        while x + n <= 0 {
+            x = x + n
+        }
+    } else {
+        while x - n >= 0 {
+            x = x - n
+        }
+    }
+
+    return x
+}
+
+# ln(x)
+# x: number; any number
+#   Get the approximate value of the natural logarithm
+#   This function uses newton's method to approximate.
+LN_ACC := 0.000000001
+func ln(x) {
+    pg := 0
+    g := 1
+
+    while abs(pg - g) > LN_ACC {
+        pg = g
+        g = pg + x / exp(pg) - 1
+    }
+
+    return g
+}
+
+# sm_exp(x)
+# x: number; any number between 0 and 1
+#   Get an approximate value of e raised to the power of x.
+#   This value is only reasonable if 0<x<1.
+#   It is approximated using the taylor series of e**x.
+SM_EXP_ACC := 0.00000000001
+func sm_exp(x) {
+    p_tot := 0
+    tot := 1
+    n := 1
+    x_pow := x
+    f := 1
+    while abs(tot - p_tot) > SM_EXP_ACC {
+        p_tot = tot
+        t := x_pow / f
+        tot = tot + t
+        f = f * (n+1)
+        x_pow = x_pow * x
+        n = n + 1
+    }
+
+    return tot
+}
+
+# exp(x)
+# x: number; any number
+#   Get an approximate value of e raised to the power of x.
+func exp(x) {
+    n := abs(x)
+    tot := 1
+    while n >= 1 {
+        tot = tot * E
+        n = n - 1
+    }
+
+    if n > 0 {
+        tot = tot * sm_exp(n)
+    }
+
+    if x < 0 {
+        return 1/tot
+    } else {
+        return tot
+    }
+}
+
+# pow(x, p)
+# x: number; any number. The base
+# p: number; the value of the exponent
+#   Raise any number to any power (x^p)
+func pow(x, p) {
+    return exp(p*ln(x))
+}
