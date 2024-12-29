@@ -39,13 +39,13 @@ func run(this js.Value, args []js.Value) interface{} {
 
 	parser := core.NewParser(tokens)
 
-	tree := parser.Parse()
+	tree, err := parser.Parse()
+
+	if err != nil {
+		return jsErrorOfString(err.Error())
+	}
 
 	log.Printf("Parsed tree: %s", tree.String())
-
-	if len(parser.Errors) > 0 {
-		return jsErrorOfString(parser.Errors[0].Description)
-	}
 
 	compiler := core.NewCompiler()
 

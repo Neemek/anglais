@@ -13,6 +13,10 @@ type ParsingError struct {
 	Causer      *Token
 }
 
+func (p *ParsingError) Error() string {
+	return p.Description
+}
+
 // Print a rich and informative error
 func (p *ParsingError) Format(src []rune) string {
 	builder := strings.Builder{}
@@ -58,21 +62,16 @@ type Parser struct {
 	prev   *Token
 	curr   *Token
 	pos    Pos
-
-	hadError bool
-	Errors   []ParsingError
 }
 
 func NewParser(tokens []Token) *Parser {
 	return &Parser{
-		tokens:   tokens,
-		pos:      0,
-		hadError: false,
-		Errors:   make([]ParsingError, 0),
+		tokens: tokens,
+		pos:    0,
 	}
 }
 
-func (p *Parser) Parse() Node {
+func (p *Parser) Parse() (Node, error) {
 	// top level statements
 	statements := make([]Node, 0)
 
@@ -80,12 +79,18 @@ func (p *Parser) Parse() Node {
 	p.advance()
 
 	for int(p.pos) < len(p.tokens) && p.curr.Type != TokenEOF {
-		statements = append(statements, p.block(true))
+		b, err := p.block(true)
+
+		if err != nil {
+			return nil, err
+		}
+
+		statements = append(statements, b)
 	}
 
 	return &BlockNode{
 		statements: statements,
-	}
+	}, nil
 }
 
 func (p *Parser) accept(tokenType TokenType) bool {
@@ -102,11 +107,11 @@ func (p *Parser) accept(tokenType TokenType) bool {
 	return false
 }
 
-func (p *Parser) expect(tokenType TokenType) {
+func (p *Parser) expect(tokenType TokenType) error {
 	if !p.accept(tokenType) {
-		p.error("Expected token "+tokenType.String()+", got "+p.curr.Type.String(), p.curr)
-		p.advance()
+		return p.error("Expected token "+tokenType.String()+", got "+p.curr.Type.String(), p.curr)
 	}
+	return nil
 }
 
 func (p *Parser) peek() (Token, error) {
@@ -128,103 +133,125 @@ func (p *Parser) advance() {
 	}
 }
 
-func (p *Parser) error(error string, causer *Token) {
-	p.hadError = true
-	p.Errors = append(p.Errors, ParsingError{
+func (p *Parser) error(error string, causer *Token) error {
+	return &ParsingError{
 		Description: error,
 		Causer:      causer,
-	})
+	}
 }
 
-func (p *Parser) factor() Node {
+func (p *Parser) factor() (Node, error) {
 	switch (*p.curr).Type {
 	case TokenString:
 		p.advance()
 		return &StringNode{
 			(*p.prev).Lexeme[1 : len((*p.prev).Lexeme)-1],
 			(*p.prev).Lexeme,
-		}
+		}, nil
 
 	case TokenNumber:
 		p.advance()
 		num, err := strconv.ParseFloat((*p.prev).Lexeme, NumberSize)
 
 		if err != nil {
-			p.error(fmt.Sprintf("Error parsing number: %v", err), p.prev)
+			return nil, p.error(fmt.Sprintf("Error parsing number: %v", err), p.prev)
 		}
 
 		return &NumberNode{
 			NumberValue(num),
-		}
+		}, nil
 
 	case TokenTrue:
 		p.advance()
 		return &BooleanNode{
 			true,
-		}
+		}, nil
 	case TokenFalse:
 		p.advance()
 		return &BooleanNode{
 			false,
-		}
+		}, nil
 
 	case TokenNil:
 		p.advance()
-		return &NilNode{}
+		return &NilNode{}, nil
 
 	// unary minus
 	case TokenMinus:
 		p.advance()
+		f, err := p.factor()
+		if err != nil {
+			return nil, err
+		}
 		return &BinaryNode{
 			BinarySubtraction,
 			&NumberNode{NumberValue(0)},
-			p.factor(),
-		}
+			f,
+		}, nil
 
 	case TokenName:
 		p.advance()
 		name := (*p.prev).Lexeme
 
 		if p.curr.Type == TokenOpenParenthesis {
-			args := p.parseArgs()
+			args, err := p.parseArgs()
+			if err != nil {
+				return nil, err
+			}
 
 			return &CallNode{
 				name,
 				args,
 				true,
-			}
+			}, nil
 		}
 
 		return &ReferenceNode{
 			name,
-		}
+		}, nil
 
 	case TokenFunc:
 		p.advance()
-		params := p.parseParams()
+		params, err := p.parseParams()
+		if err != nil {
+			return nil, err
+		}
+
+		b, err := p.block(false)
+		if err != nil {
+			return nil, err
+		}
 
 		return &FunctionNode{
 			"*",
 			params,
-			p.block(false),
-		}
+			b,
+		}, nil
 
 	case TokenOpenParenthesis:
 		p.advance()
-		v := p.condition()
-		p.expect(TokenCloseParenthesis)
+		v, err := p.condition()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expect(TokenCloseParenthesis); err != nil {
+			return nil, err
+		}
 
-		return v
+		return v, nil
 
 	default:
-		p.error("invalid factor", p.curr)
+		err := p.error("invalid factor", p.curr)
 		p.advance()
-		return nil
+		return nil, err
 	}
 }
 
-func (p *Parser) product() Node {
-	left := p.factor()
+func (p *Parser) product() (Node, error) {
+	left, err := p.factor()
+	if err != nil {
+		return nil, err
+	}
 
 	for p.accept(TokenStar) || p.accept(TokenSlash) {
 		op := BinaryMultiplication
@@ -233,18 +260,26 @@ func (p *Parser) product() Node {
 			op = BinaryDivision
 		}
 
+		f, err := p.factor()
+		if err != nil {
+			return nil, err
+		}
+
 		left = &BinaryNode{
 			op,
 			left,
-			p.factor(),
+			f,
 		}
 	}
 
-	return left
+	return left, nil
 }
 
-func (p *Parser) term() Node {
-	left := p.product()
+func (p *Parser) term() (Node, error) {
+	left, err := p.product()
+	if err != nil {
+		return nil, err
+	}
 
 	for p.accept(TokenPlus) || p.accept(TokenMinus) {
 		op := BinaryAddition
@@ -253,18 +288,28 @@ func (p *Parser) term() Node {
 			op = BinarySubtraction
 		}
 
+		pr, err := p.product()
+		if err != nil {
+			return nil, err
+		}
+
 		left = &BinaryNode{
 			op,
 			left,
-			p.product(),
+			pr,
 		}
 	}
 
-	return left
+	return left, nil
 }
 
-func (p *Parser) comparison() Node {
-	left := p.term()
+func (p *Parser) comparison() (Node, error) {
+	left, err := p.term()
+
+	if err != nil {
+		return nil, err
+	}
+
 	op := BinaryEquality
 
 	switch (*p.curr).Type {
@@ -281,20 +326,30 @@ func (p *Parser) comparison() Node {
 	case TokenGreaterThanOrEqual:
 		op = BinaryGreaterEqual
 	default:
-		return left
+		return left, nil
 	}
 
 	p.advance()
 
+	t, err := p.term()
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &BinaryNode{
 		op,
 		left,
-		p.term(),
-	}
+		t,
+	}, nil
 }
 
-func (p *Parser) condition() Node {
-	left := p.comparison()
+func (p *Parser) condition() (Node, error) {
+	left, err := p.comparison()
+	if err != nil {
+		return nil, err
+	}
+
 	op := BinaryEquality
 
 	switch (*p.curr).Type {
@@ -303,57 +358,80 @@ func (p *Parser) condition() Node {
 	case TokenDoublePipe:
 		op = BinaryOr
 	default:
-		return left
+		return left, nil
 	}
 
 	p.advance()
 
+	c, err := p.comparison()
+	if err != nil {
+		return left, err
+	}
+
 	return &BinaryNode{
 		op,
 		left,
-		p.comparison(),
-	}
+		c,
+	}, nil
 }
 
-func (p *Parser) statement() Node {
+func (p *Parser) statement() (Node, error) {
 	switch (*p.curr).Type {
 	case TokenIf:
 		p.advance()
 
-		condition := p.condition()
-		then := p.block(false)
+		condition, err := p.condition()
+		if err != nil {
+			return nil, err
+		}
+		then, err := p.block(false)
+
+		if err != nil {
+			return nil, err
+		}
+
 		var otherwise Node
 
 		if p.accept(TokenElse) {
-			otherwise = p.block(false)
+			otherwise, err = p.block(false)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		return &ConditionalNode{
 			condition,
 			then,
 			otherwise,
-		}
+		}, nil
 
 	case TokenName:
 		p.advance()
 		name := (*p.prev).Lexeme
 
 		if p.curr.Type == TokenOpenParenthesis {
-			args := p.parseArgs()
+			args, err := p.parseArgs()
+			if err != nil {
+				return nil, err
+			}
 
 			return &CallNode{
 				name,
 				args,
 				false,
-			}
+			}, nil
 		} else if p.accept(TokenAssign) || p.accept(TokenDeclare) {
 			isDeclaration := p.prev.Type == TokenDeclare
+			c, err := p.condition()
+			if err != nil {
+				return nil, err
+			}
 
 			return &AssignNode{
 				name,
-				p.condition(),
+				c,
 				isDeclaration,
-			}
+			}, nil
 		} else {
 			return p.condition()
 		}
@@ -361,101 +439,154 @@ func (p *Parser) statement() Node {
 	case TokenFunc:
 		p.advance()
 
-		p.expect(TokenName)
+		if err := p.expect(TokenName); err != nil {
+			return nil, err
+		}
 		name := p.prev.Lexeme
 
-		params := p.parseParams()
+		params, err := p.parseParams()
+		if err != nil {
+			return nil, err
+		}
+
+		b, err := p.block(false)
+		if err != nil {
+			return nil, err
+		}
 
 		return &AssignNode{
 			name,
 			&FunctionNode{
 				name,
 				params,
-				p.block(false),
+				b,
 			},
 			true,
-		}
+		}, nil
 
 	case TokenWhile:
 		p.advance()
 
-		return &LoopNode{
-			p.condition(),
-			p.block(false),
+		c, err := p.condition()
+		if err != nil {
+			return nil, err
 		}
+
+		b, err := p.block(false)
+		if err != nil {
+			return nil, err
+		}
+
+		return &LoopNode{
+			c,
+			b,
+		}, nil
 
 	case TokenReturn:
 		p.advance()
 
-		return &ReturnNode{
-			p.condition(),
+		c, err := p.condition()
+		if err != nil {
+			return nil, err
 		}
+
+		return &ReturnNode{
+			c,
+		}, nil
 
 	case TokenBreakpoint:
 		p.advance()
 
-		return &BreakpointNode{}
+		return &BreakpointNode{}, nil
 
 	default:
-		p.error("invalid statement", p.curr)
+		err := p.error("invalid statement", p.curr)
 		p.advance()
-		return nil
+		return nil, err
 	}
 }
 
-func (p *Parser) block(canBeStatement bool) Node {
+func (p *Parser) block(canBeStatement bool) (Node, error) {
 	if canBeStatement {
 		if !p.accept(TokenOpenBrace) {
 			return p.statement()
 		}
 	} else {
-		p.expect(TokenOpenBrace)
+		if err := p.expect(TokenOpenBrace); err != nil {
+			return nil, err
+		}
 	}
 
 	statements := make([]Node, 0)
 
 	for !p.accept(TokenCloseBrace) {
-		statements = append(statements, p.statement())
+		s, err := p.statement()
+
+		if err != nil {
+			return nil, err
+		}
+
+		statements = append(statements, s)
 	}
 
 	return &BlockNode{
 		statements,
-	}
+	}, nil
 }
 
-func (p *Parser) parseArgs() []Node {
+func (p *Parser) parseArgs() ([]Node, error) {
 	args := make([]Node, 0)
 
-	p.expect(TokenOpenParenthesis)
+	if err := p.expect(TokenOpenParenthesis); err != nil {
+		return nil, err
+	}
 
 	if !p.accept(TokenCloseParenthesis) {
-		args = append(args, p.condition())
+		c, err := p.condition()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, c)
 		for !p.accept(TokenCloseParenthesis) {
-			p.expect(TokenComma)
-			args = append(args, p.condition())
+			if err := p.expect(TokenComma); err != nil {
+				return nil, err
+			}
+			c, err = p.condition()
+			if err != nil {
+				return nil, err
+			}
+			args = append(args)
 		}
 	}
 
-	return args
+	return args, nil
 }
 
 // parseParams parse parameters and parentheses
-func (p *Parser) parseParams() []string {
-	p.expect(TokenOpenParenthesis)
+func (p *Parser) parseParams() ([]string, error) {
+	if err := p.expect(TokenOpenParenthesis); err != nil {
+		return nil, err
+	}
 	params := make([]string, 0)
 
 	if p.accept(TokenName) {
 		name := (*p.prev).Lexeme
 		params = append(params, name)
 		for !p.accept(TokenCloseParenthesis) {
-			p.expect(TokenComma)
-			p.expect(TokenName)
+			if err := p.expect(TokenComma); err != nil {
+				return nil, err
+			}
+			if err := p.expect(TokenName); err != nil {
+				return nil, err
+			}
 			name = (*p.prev).Lexeme
 			params = append(params, name)
 		}
 	} else {
-		p.expect(TokenCloseParenthesis)
+		if err := p.expect(TokenCloseParenthesis); err != nil {
+			return nil, err
+		}
 	}
 
-	return params
+	return params, nil
 }

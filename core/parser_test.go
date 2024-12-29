@@ -14,10 +14,6 @@ func TestNewParser(t *testing.T) {
 		t.Fatal("parser should not be nil")
 	}
 
-	if p.hadError {
-		t.Error("parser should not when initialized report an error")
-	}
-
 	if p.pos != 0 {
 		t.Error("parser should initialize position at 0")
 	}
@@ -602,10 +598,10 @@ func TestParser_Parse(t *testing.T) {
 			p := NewParser(data.tokens)
 
 			t.Logf("Parsing main")
-			tree := p.Parse()
+			tree, err := p.Parse()
 
-			if p.hadError {
-				t.Fatalf("Unexpected error(s): %s", p.Errors)
+			if err != nil {
+				t.Fatalf("Unexpected error(s): %s", err.(*ParsingError).Format([]rune{}))
 			}
 
 			t.Logf("Checking parsed tree")
@@ -622,7 +618,7 @@ func BenchmarkParser_Parse(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				p := NewParser(data.tokens)
 
-				_ = p.Parse()
+				_, _ = p.Parse()
 			}
 		})
 	}

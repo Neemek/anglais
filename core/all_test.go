@@ -43,13 +43,11 @@ func TestAll(t *testing.T) {
 			p := NewParser(tokens)
 
 			t.Log("Parsing tokens")
-			tree := p.Parse()
+			tree, err := p.Parse()
 
-			if p.hadError {
-				for _, e := range p.Errors {
-					print(e.Format(tc.src))
-				}
-				t.Fatalf("parser had error(s)")
+			if err != nil {
+				print(err.(*ParsingError).Format([]rune(tc.src)))
+				t.Fatalf("parser had an error")
 			}
 
 			t.Log("Initializing compiler")
@@ -82,7 +80,7 @@ func BenchmarkAll(b *testing.B) {
 			tokens, _ := l.Tokenize()
 
 			p := NewParser(tokens)
-			tree := p.Parse()
+			tree, _ := p.Parse()
 
 			c := NewCompiler()
 			c.Compile(tree)

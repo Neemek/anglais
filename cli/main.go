@@ -59,24 +59,11 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 			log.Println("Initialized parser")
 		}
 
-		defer func() {
-			if r := recover(); r != nil {
-				if r != "no more tokens" { // if the panic was not caused by the parser, it should not be recovered.
-					panic(r)
-				}
-				for _, e := range p.Errors {
-					print(e.Format([]rune(src)))
-				}
-			}
-		}()
-
-		tree := p.Parse()
+		tree, err := p.Parse()
 
 		// if there were parsing errors, print them out
-		if len(p.Errors) > 0 {
-			for _, e := range p.Errors {
-				print(e.Format([]rune(src)))
-			}
+		if err != nil {
+			print(err.(*core.ParsingError).Format([]rune(src)))
 			log.Fatal("Parsing had errors")
 		}
 
@@ -165,7 +152,12 @@ func (cmd *CompileCmd) Compile(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Parsing tree")
 	}
-	tree := p.Parse()
+
+	tree, err := p.Parse()
+
+	if err != nil {
+		print(err.(*core.ParsingError).Format([]rune(src)))
+	}
 
 	if ctx.Debug {
 		log.Println("Initialized compiler")
