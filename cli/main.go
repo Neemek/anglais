@@ -114,10 +114,10 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 
 type CompileCmd struct {
 	File   string `arg:"" name:"file" help:"File to compile program from" type:"existingfile"`
-	Output string `arg:"" name:"output" optional:"" help:"File path to output bytecode to" type:"path"`
+	Output string `arg:"" name:"output" help:"File path to output bytecode to" type:"path"`
 }
 
-func (cmd *CompileCmd) Compile(ctx *Context) error {
+func (cmd *CompileCmd) Run(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Reading file")
 	}
@@ -196,7 +196,7 @@ func (cmd *CompileCmd) Compile(ctx *Context) error {
 }
 
 var cli struct {
-	Debug bool `short:"d" help:"Enable debug mode."`
+	Debug bool `short:"D" name:"debug" help:"Enable debug mode."`
 
 	Run        RunCmd     `cmd:"" name:"run" help:"Run program."`
 	CompileCmd CompileCmd `cmd:"" name:"compile" help:"Compile program to bytecode."`
