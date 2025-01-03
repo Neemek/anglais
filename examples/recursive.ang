@@ -1,5 +1,4 @@
 
-/*
 # fibonacci sequence
 func fib(n) {
     if n <= 1 {
@@ -9,7 +8,8 @@ func fib(n) {
     return fib(n - 1) + fib(n - 2)
 }
 
-write(fib(4))
-*/
-
-write("test")
+n := 0
+while n < 10 {
+    write(fib(n))
+    n = n + 1
+}
