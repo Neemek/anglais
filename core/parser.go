@@ -393,7 +393,12 @@ func (p *Parser) statement() (Node, error) {
 		var otherwise Node
 
 		if p.accept(TokenElse) {
-			otherwise, err = p.block(false)
+			// allow else if
+			if p.curr.Type == TokenIf {
+				otherwise, err = p.statement()
+			} else {
+				otherwise, err = p.block(false)
+			}
 			if err != nil {
 				return nil, err
 			}
