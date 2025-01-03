@@ -76,18 +76,20 @@ func BenchmarkAll(b *testing.B) {
 
 	for name, tc := range cases {
 		b.Run(name, func(b *testing.B) {
-			l := NewLexer(tc.src)
-			tokens, _ := l.Tokenize()
+			for i := 0; i < b.N; i++ {
+				l := NewLexer(tc.src)
+				tokens, _ := l.Tokenize()
 
-			p := NewParser(tokens)
-			tree, _ := p.Parse()
+				p := NewParser(tokens)
+				tree, _ := p.Parse()
 
-			c := NewCompiler()
-			c.Compile(tree)
+				c := NewCompiler()
+				c.Compile(tree)
 
-			vm := NewVM(c.Chunk, 256, 256)
+				vm := NewVM(c.Chunk, 256, 256)
 
-			for vm.HasNext() && vm.Next() {
+				for vm.HasNext() && vm.Next() {
+				}
 			}
 		})
 	}
