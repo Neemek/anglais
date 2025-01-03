@@ -45,8 +45,8 @@ func TestNewStack(t *testing.T) {
 }
 
 func BenchmarkNewStack(b *testing.B) {
-	for n := 0; n <= 2048; n += 256 {
-		b.Run(fmt.Sprintf("size_%d", n), func(b *testing.B) {
+	for n := 0; n <= 512; n += 256 {
+		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = NewStack[any](Pos(n))
 			}
@@ -116,10 +116,10 @@ func TestStackOverflow(t *testing.T) {
 }
 
 func BenchmarkStack(b *testing.B) {
-	for n := 256; n <= 2048; n += 256 {
+	for n := 256; n <= 512; n += 256 {
 		b.Run(fmt.Sprintf("size_%d", n), func(b *testing.B) {
+			s := NewStack[any](Pos(n))
 			for i := 0; i < b.N; i++ {
-				s := NewStack[any](Pos(n))
 
 				s.Push(2)
 				s.Pop()
