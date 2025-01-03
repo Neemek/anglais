@@ -1,0 +1,71 @@
+func f(x) {
+    return x*x - 4
+}
+
+func graph(f, xmin, xmax, xstep) {
+    ymin := -1
+    ymax := 0
+
+    # find the bounds of y
+    x := xmin
+    y := 0
+
+    while x < xmax {
+        y = f(x)
+
+        if y < ymin {
+            ymin = y
+        }
+
+        if y > ymax {
+            ymax = y
+        }
+
+        x = x + 0.1
+    }
+
+    # print row by row
+    y := ymax
+    x = xmin
+
+    while y >= ymin {
+        x = xmin
+        while x < xmax {
+            v := f(x)
+            if y - 0.5 < v && v < y + 0.5 {
+                # deduce direction (derivative)
+                dx := 0.0001
+                dy := (f(x+dx) - v) / dx
+
+                if dy > 1 {
+                    print("/")
+                } else if dy < -1 {
+                    print("\")
+                } else {
+                    print("=")
+                }
+            } else {
+                if -0.05 < x && x < 0.05 {
+                    if y == 0 {
+                        print("+")
+                    } else {
+                        print("|")
+                    }
+                } else if y == 0 {
+                        print("-")
+                } else {
+                    print(" ")
+                }
+            }
+
+            x = x + xstep
+        }
+        # new line
+        write("")
+
+        y = y - 1
+    }
+
+}
+
+graph(f, -5, 5, 0.1)
