@@ -9,10 +9,7 @@ import (
 )
 
 func jsError(err error) interface{} {
-	errorConstructor := js.Global().Get("Error")
-	errorObject := errorConstructor.New(err.Error())
-
-	return errorObject
+	return jsErrorOfString(err.Error())
 }
 
 func jsErrorOfString(err string) interface{} {
@@ -25,7 +22,6 @@ func jsErrorOfString(err string) interface{} {
 func run(this js.Value, args []js.Value) interface{} {
 	source := args[0].String()
 	outputHandler := args[1]
-	doRun := args[2]
 	log.Printf("got source: %s", source)
 
 	lexer := core.NewLexer(source)
@@ -61,7 +57,7 @@ func run(this js.Value, args []js.Value) interface{} {
 		Parameters: []string{"value"},
 		F: func(v map[string]core.Value) core.Value {
 			log.Printf("Writing value: %s", v["value"].String())
-			outputHandler.Invoke(js.ValueOf(v["value"].String()))
+			outputHandler.Invoke(js.ValueOf(v["value"].String() + "\n"))
 			return nil
 		},
 	})
@@ -70,13 +66,12 @@ func run(this js.Value, args []js.Value) interface{} {
 		Parameters: []string{"value"},
 		F: func(v map[string]core.Value) core.Value {
 			log.Printf("Printing value: %s", v["value"].String())
-			outputHandler.Invoke(js.ValueOf(v["value"].String() + "\n"))
+			outputHandler.Invoke(js.ValueOf(v["value"].String()))
 			return nil
 		},
 	})
 
-	for doRun.Invoke().Bool() && vm.HasNext() {
-		vm.Next()
+	for vm.HasNext() && vm.Next() {
 	}
 
 	log.Println("Finished executing")
