@@ -4,7 +4,7 @@
 # see: https://en.wikipedia.org/wiki/Basel_problem
 
 # The amount of terms
-terms := 10000
+terms := 100000000
 
 # The running sum of terms
 tot := 0
@@ -29,7 +29,7 @@ func abs(x) {
 # newton's method.
 # see: https://en.wikipedia.org/wiki/Newton's_method
 # The required accuracy
-SQRT_ACC := 0.00001
+SQRT_ACC := 0.00000001
 func sqrt(x) {
     pg := 0 # previous guess
     g := 1 # current guess
