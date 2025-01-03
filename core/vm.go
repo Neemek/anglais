@@ -367,10 +367,14 @@ func (vm *VM) Next() bool {
 		vm.stack.Push(!b)
 
 	case InstructionAnd:
-		vm.stack.Push(vm.stack.Pop().(BoolValue) && vm.stack.Pop().(BoolValue))
+		r := vm.stack.Pop().(BoolValue)
+		l := vm.stack.Pop().(BoolValue)
+		vm.stack.Push(l && r)
 
 	case InstructionOr:
-		vm.stack.Push(vm.stack.Pop().(BoolValue) || vm.stack.Pop().(BoolValue))
+		r := vm.stack.Pop().(BoolValue)
+		l := vm.stack.Pop().(BoolValue)
+		vm.stack.Push(r || l)
 
 	case InstructionLess:
 		r := vm.stack.Pop().(NumberValue)
