@@ -21,6 +21,30 @@ func GetAllTestCases() map[string]AllTestCase {
 				},
 			},
 		},
+		"func": {
+			"func sum(a, b) {\n\treturn a + b\n}\nsum(1, 2)",
+			[]Value{
+				&VariableValue{
+					"sum",
+					FunctionValue{
+						Name:   "sum",
+						Params: []string{"a", "b"},
+						Chunk: &Chunk{
+							Bytecode: []Bytecode{
+								InstructionDescend,
+								InstructionGetLocal, 0,
+								InstructionGetLocal, 1,
+								InstructionAdd,
+								InstructionReturn,
+								InstructionAscend,
+							},
+							Constants: []Value{StringValue("a"), StringValue("b")},
+						},
+					},
+					0,
+				},
+			},
+		},
 	}
 }
 
