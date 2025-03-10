@@ -1,0 +1,12 @@
+
+a := 2
+
+{
+    a := 3
+    assert(a == 3)
+
+    a = 4
+    assert(a == 4)
+}
+
+assert(a == 2)
