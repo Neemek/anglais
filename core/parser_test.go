@@ -426,6 +426,91 @@ func GetTokenTestData() map[string]TokenTestData {
 				},
 			},
 		},
+		"prop_getting": {
+			[]Token{
+				NewToken(TokenName, 0, 1, 0, "p"),
+				NewToken(TokenDeclare, 1, 2, 0, ":="),
+				NewToken(TokenName, 3, 1, 0, "a"),
+				NewToken(TokenDot, 4, 1, 0, "."),
+				NewToken(TokenName, 5, 1, 0, "b"),
+
+				NewToken(TokenEOF, 23, 0, 2, ""),
+			},
+			&BlockNode{
+				[]Node{
+					&AssignNode{
+						"p",
+						&AccessNode{
+							&ReferenceNode{
+								"a",
+							},
+							"b",
+						},
+						true,
+					},
+				},
+			},
+		},
+		"list_init": {
+			[]Token{
+				NewToken(TokenName, 0, 4, 0, "data"),
+				NewToken(TokenDeclare, 4, 2, 0, ":="),
+
+				NewToken(TokenOpenBracket, 6, 1, 0, "["),
+				NewToken(TokenName, 8, 1, 0, "a"),
+				NewToken(TokenComma, 11, 1, 0, ","),
+
+				NewToken(TokenNumber, 8, 1, 0, "3.141"),
+				NewToken(TokenComma, 11, 1, 0, ","),
+
+				NewToken(TokenString, 6, 1, 0, "\"Hello world!\""),
+				NewToken(TokenComma, 11, 1, 0, ","),
+
+				NewToken(TokenTrue, 6, 1, 0, "true"),
+				NewToken(TokenComma, 11, 1, 0, ","),
+
+				NewToken(TokenOpenBracket, 6, 1, 0, "["),
+				NewToken(TokenNumber, 6, 1, 0, "2"),
+				NewToken(TokenComma, 11, 1, 0, ","),
+
+				NewToken(TokenNumber, 6, 1, 0, "3"),
+				NewToken(TokenCloseBracket, 6, 1, 0, "]"),
+
+				NewToken(TokenCloseBracket, 6, 1, 0, "]"),
+
+				NewToken(TokenEOF, 23, 0, 2, ""),
+			},
+			&BlockNode{
+				[]Node{
+					&AssignNode{
+						"data",
+						&ListNode{
+							[]Node{
+								&ReferenceNode{
+									"a",
+								},
+								&NumberNode{
+									3.141,
+								},
+								&StringNode{
+									"Hello world!",
+									"\"Hello world!\"",
+								},
+								&BooleanNode{
+									true,
+								},
+								&ListNode{
+									[]Node{
+										&NumberNode{2}, &NumberNode{3},
+									},
+								},
+							},
+						},
+						true,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -533,11 +618,7 @@ func NodeEquality(t *testing.T, n1 Node, n2 Node) {
 		n := n1.(*CallNode)
 		m := n2.(*CallNode)
 
-		if n.name != m.name {
-			t.Errorf("Call node names don't match (%s and %s)", n.name, m.name)
-		} else {
-			t.Logf("Call node names match (%s)", n.name)
-		}
+		NodeEquality(t, n.source, m.source)
 
 		if n.keep == m.keep {
 			t.Logf("Call node keep modifier doesn't match (%v and %v)", n.keep, m.keep)

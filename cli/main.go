@@ -5,6 +5,7 @@ import (
 	"log"
 	"neemek.com/anglais/core"
 	"os"
+	"path/filepath"
 )
 
 type Context struct {
@@ -14,6 +15,37 @@ type Context struct {
 type RunCmd struct {
 	Bytecode bool   `name:"bytecode" short:"c" help:"Run file as if it's bytecode"`
 	File     string `arg:"" name:"file" help:"File to read program from" type:"existingfile"`
+}
+
+// WorkingDirectoryResolver resolves imports relative to the working directory
+type WorkingDirectoryResolver struct {
+	workingDirectory string
+}
+
+func (r *WorkingDirectoryResolver) Resolve(path string) (core.Node, error) {
+	pth := filepath.Join(r.workingDirectory, path)
+	f, err := os.ReadFile(pth)
+	if err != nil {
+		return nil, err
+	}
+
+	str := string(f)
+
+	l := core.NewLexer(str)
+
+	tokens, err := l.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	p := core.NewParser(tokens)
+
+	tree, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return tree, nil
 }
 
 func (cmd *RunCmd) Run(ctx *Context) error {
@@ -71,6 +103,15 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 			log.Println("Initialized compiler")
 		}
 		c := core.NewCompiler()
+
+		if ctx.Debug {
+			log.Println("Setting imports resolver")
+		}
+
+		dir, _ := filepath.Split(cmd.File)
+		c.SetImportsResolver(&WorkingDirectoryResolver{
+			dir,
+		})
 
 		if ctx.Debug {
 			log.Println("Compiling parse tree")
@@ -162,7 +203,17 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	if ctx.Debug {
 		log.Println("Initialized compiler")
 	}
+
 	c := core.NewCompiler()
+
+	if ctx.Debug {
+		log.Println("Setting import resolver")
+	}
+
+	dir, _ := filepath.Split(cmd.File)
+	c.SetImportsResolver(&WorkingDirectoryResolver{
+		dir,
+	})
 
 	if ctx.Debug {
 		log.Println("Compiling parse tree")

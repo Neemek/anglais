@@ -5,7 +5,14 @@ type Compiler struct {
 	ip    Pos
 	scope Pos
 
+	imports  map[string]Node
+	resolver ImportsResolver
+
 	stack *Stack[LocalVariable]
+}
+
+type ImportsResolver interface {
+	Resolve(path string) (Node, error)
 }
 
 type LocalVariable struct {
@@ -15,10 +22,11 @@ type LocalVariable struct {
 
 func NewCompiler() *Compiler {
 	c := &Compiler{
-		Chunk: NewChunk(make([]Bytecode, 0), make([]Value, 0)),
-		ip:    0,
-		scope: 0,
-		stack: NewStack[LocalVariable](256),
+		Chunk:   NewChunk(make([]Bytecode, 0), make([]Value, 0)),
+		ip:      0,
+		scope:   0,
+		stack:   NewStack[LocalVariable](256),
+		imports: make(map[string]Node),
 	}
 
 	return c
@@ -62,6 +70,14 @@ func (c *Compiler) Compile(tree Node) {
 	case NumberNodeType:
 		c.add(InstructionConstant)
 		c.addConstant(tree.(*NumberNode).value)
+
+	case ListNodeType:
+		v := tree.(*ListNode).items
+		c.add(InstructionNewList)
+		for _, n := range v {
+			c.Compile(n)
+			c.add(InstructionAppend)
+		}
 
 	case ReferenceNodeType:
 		c.getVar(tree.(*ReferenceNode).name)
@@ -155,7 +171,7 @@ func (c *Compiler) Compile(tree Node) {
 			c.Compile(arg)
 		}
 
-		c.getVar(n.name)
+		c.Compile(n.source)
 
 		c.add(InstructionCall)
 
@@ -194,11 +210,27 @@ func (c *Compiler) Compile(tree Node) {
 			n.name,
 			n.params,
 			c.Chunk,
+			nil,
 		}
 
 		// restore old chunk and ip
 		c.Chunk = mc
 		c.ip = mip
+
+	case AccessNodeType:
+		n := tree.(*AccessNode)
+		c.Compile(n.source)
+		c.add(InstructionAccessProperty)
+		c.addConstant(StringValue(n.property))
+
+	case ImportNodeType:
+		n := tree.(*ImportNode)
+
+		t := c.resolveImport(n.path).(*BlockNode)
+
+		for _, statement := range t.statements {
+			c.Compile(statement)
+		}
 
 	case ReturnNodeType:
 		c.Compile(tree.(*ReturnNode).value)
@@ -303,6 +335,26 @@ func (c *Compiler) descend() {
 	if c.scope != 1 {
 		c.add(InstructionDescend)
 	}
+}
+
+func (c *Compiler) resolveImport(path string) Node {
+	if chunk, ok := c.imports[path]; ok {
+		return chunk
+	}
+
+	// find tree
+	tree, err := c.resolver.Resolve(path)
+	if err != nil {
+		panic(err)
+	}
+
+	c.imports[path] = tree
+
+	return tree
+}
+
+func (c *Compiler) SetImportsResolver(resolver ImportsResolver) {
+	c.resolver = resolver
 }
 
 func (c *Compiler) advance(amount Pos) {

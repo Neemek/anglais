@@ -176,6 +176,30 @@ func (p *Parser) factor() (Node, error) {
 		p.advance()
 		return &NilNode{}, nil
 
+	case TokenOpenBracket:
+		p.advance()
+
+		var values []Node
+		for !p.accept(TokenCloseBracket) {
+			if len(values) > 0 {
+				if err := p.expect(TokenComma); err != nil {
+					return nil, err
+				}
+			}
+
+			value, err := p.condition()
+
+			if err != nil {
+				return nil, err
+			}
+
+			values = append(values, value)
+		}
+
+		return &ListNode{
+			values,
+		}, nil
+
 	// unary minus
 	case TokenMinus:
 		p.advance()
@@ -200,7 +224,9 @@ func (p *Parser) factor() (Node, error) {
 			}
 
 			return &CallNode{
-				name,
+				&ReferenceNode{
+					name,
+				},
 				args,
 				true,
 			}, nil
@@ -247,8 +273,44 @@ func (p *Parser) factor() (Node, error) {
 	}
 }
 
+func (p *Parser) prop() (Node, error) {
+	v, err := p.factor()
+	if err != nil {
+		return nil, err
+	}
+
+	// parse chains of prop-getting ( "".split().join().length.round() )
+	for p.accept(TokenDot) {
+		if err := p.expect(TokenName); err != nil {
+			return nil, err
+		}
+		property := (*p.prev).Lexeme
+
+		v = &AccessNode{
+			v,
+			property,
+		}
+
+		// if called, also add
+		if (*p.curr).Type == TokenOpenParenthesis {
+			args, err := p.parseArgs()
+			if err != nil {
+				return nil, err
+			}
+
+			v = &CallNode{
+				v,
+				args,
+				true,
+			}
+		}
+	}
+
+	return v, nil
+}
+
 func (p *Parser) product() (Node, error) {
-	left, err := p.factor()
+	left, err := p.prop()
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +322,7 @@ func (p *Parser) product() (Node, error) {
 			op = BinaryDivision
 		}
 
-		f, err := p.factor()
+		f, err := p.prop()
 		if err != nil {
 			return nil, err
 		}
@@ -414,14 +476,49 @@ func (p *Parser) statement() (Node, error) {
 		p.advance()
 		name := (*p.prev).Lexeme
 
-		if p.curr.Type == TokenOpenParenthesis {
+		if (*p.curr).Type == TokenDot {
+			var v Node = &ReferenceNode{
+				name,
+			}
+
+			// parse chains of prop-getting ( "".split().join().length.round() )
+			for p.accept(TokenDot) {
+				if err := p.expect(TokenName); err != nil {
+					return nil, err
+				}
+				property := (*p.prev).Lexeme
+
+				v = &AccessNode{
+					v,
+					property,
+				}
+
+				// if called, also add
+				if (*p.curr).Type == TokenOpenParenthesis {
+					args, err := p.parseArgs()
+					if err != nil {
+						return nil, err
+					}
+
+					v = &CallNode{
+						v,
+						args,
+						(*p.curr).Type == TokenDot, // if the chain is continued, keep the value.
+					}
+				}
+			}
+
+			return v, nil
+		} else if p.curr.Type == TokenOpenParenthesis {
 			args, err := p.parseArgs()
 			if err != nil {
 				return nil, err
 			}
 
 			return &CallNode{
-				name,
+				&ReferenceNode{
+					name,
+				},
 				args,
 				false,
 			}, nil
@@ -440,6 +537,19 @@ func (p *Parser) statement() (Node, error) {
 		} else {
 			return p.condition()
 		}
+
+	case TokenImport:
+		p.advance()
+
+		if err := p.expect(TokenString); err != nil {
+			return nil, err
+		}
+
+		path := p.prev.Lexeme[1 : len(p.prev.Lexeme)-1]
+
+		return &ImportNode{
+			path,
+		}, nil
 
 	case TokenFunc:
 		p.advance()

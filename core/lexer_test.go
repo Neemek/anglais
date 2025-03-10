@@ -122,6 +122,12 @@ func GetLexerTestData() map[string]LexerTestData {
 				TokenOpenBrace, TokenReturn, TokenName, TokenPlus, TokenName, TokenCloseBrace,
 			},
 		},
+		"list": {
+			"data := [3, 1, 4, 1]",
+			[]TokenType{
+				TokenName, TokenDeclare, TokenOpenBracket, TokenNumber, TokenComma, TokenNumber, TokenComma, TokenNumber, TokenComma, TokenNumber, TokenCloseBracket,
+			},
+		},
 	}
 }
 

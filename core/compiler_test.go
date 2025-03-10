@@ -267,6 +267,7 @@ func GetCompileTestData() map[string]CompileTestData {
 								StringValue("a"), StringValue("b"),
 							},
 						),
+						nil,
 					},
 					0,
 				},
@@ -296,7 +297,9 @@ func GetCompileTestData() map[string]CompileTestData {
 						true,
 					},
 					&CallNode{
-						"a",
+						&ReferenceNode{
+							"a",
+						},
 						[]Node{},
 						false,
 					},
@@ -321,6 +324,7 @@ func GetCompileTestData() map[string]CompileTestData {
 								NumberValue(1), StringValue("b"),
 							},
 						),
+						nil,
 					},
 					0,
 				},

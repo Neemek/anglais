@@ -41,6 +41,8 @@ const (
 	// InstructionGreaterOrEqual pops two from stack, pushes whether the lowest is greater or equal than the highest
 	InstructionGreaterOrEqual
 
+	// InstructionAccessProperty gets a property from a value, and pops it onto the stack
+	InstructionAccessProperty
 	// InstructionCall pops a function object from the stack and begins execution of the chunk
 	InstructionCall
 
@@ -88,6 +90,14 @@ const (
 	InstructionFalse
 	// InstructionNil Push a nil literal to the stack
 	InstructionNil
+
+	// InstructionNewList Push a new (empty) list to the stack
+	InstructionNewList
+	// InstructionAppend Append to a list. stack: (... > list > item) => (... > list)
+	InstructionAppend
+	// InstructionFormList Form items on the stack into a list. The 2 bytes after the instructions are the amount of
+	// items to include minus one. (value of 0 => 1 item, value of 1 => 2 items, etc.)
+	InstructionFormList
 
 	// InstructionBreakpoint for debugging purposes
 	InstructionBreakpoint
@@ -161,8 +171,16 @@ func (b Bytecode) String() string {
 		return "AND"
 	case InstructionOr:
 		return "OR"
+	case InstructionFormList:
+		return "FORM_LIST"
 	case InstructionBreakpoint:
 		return "BREAKPOINT"
+	case InstructionNewList:
+		return "NEW_LIST"
+	case InstructionAppend:
+		return "APPEND"
+	case InstructionAccessProperty:
+		return "ACCESS_PROPERTY"
 	}
 	return "UNDEFINED"
 }
@@ -268,18 +286,32 @@ var DefaultGlobals = map[string]Value{
 	"write": BuiltinFunctionValue{
 		"write", // always remember where you come from...
 		[]string{"value"},
-		func(v map[string]Value) Value {
+		func(_ *VM, this Value, v map[string]Value) (Value, error) {
 			println(v["value"].String())
-			return nil
+			return nil, nil
 		},
+		nil,
 	},
 	"print": BuiltinFunctionValue{
 		"print",
 		[]string{"value"},
-		func(v map[string]Value) Value {
+		func(_ *VM, this Value, v map[string]Value) (Value, error) {
 			print(v["value"].String())
-			return nil
+			return nil, nil
 		},
+		nil,
+	},
+	"assert": BuiltinFunctionValue{
+		"assert",
+		[]string{"condition"},
+		func(vm *VM, this Value, params map[string]Value) (Value, error) {
+			if !params["condition"].(BoolValue) {
+				return nil, errors.New("assertion failed")
+			}
+
+			return NilValue{}, nil
+		},
+		nil,
 	},
 }
 
@@ -300,7 +332,7 @@ func NewVM(chunk *Chunk, stackSize Pos, callstackSize Pos) *VM {
 func (vm *VM) Next() bool {
 	switch vm.NextByte() {
 	case InstructionReturn:
-		if vm.call.Current <= 0 {
+		if vm.call.Current == 0 {
 			return false
 		} else {
 			v := vm.stack.Pop()
@@ -351,16 +383,14 @@ func (vm *VM) Next() bool {
 		vm.stack.Push(l / r)
 
 	case InstructionEquals:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
-
-		vm.stack.Push(BoolValue(l == r))
+		vm.stack.Push(
+			BoolValue(vm.stack.Pop().Equals(vm.stack.Pop())),
+		)
 
 	case InstructionNotEqual:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
-
-		vm.stack.Push(BoolValue(l != r))
+		vm.stack.Push(
+			BoolValue(!vm.stack.Pop().Equals(vm.stack.Pop())),
+		)
 
 	case InstructionNot:
 		b := vm.stack.Pop().(BoolValue)
@@ -412,7 +442,6 @@ func (vm *VM) Next() bool {
 				scope:       vm.scope,
 			})
 
-			// TODO Fix the variables sometimes being wrongly assigned
 			for i := len(f.Params) - 1; i >= 0; i-- {
 				p := vm.stack.Current - Pos(len(f.Params)) + Pos(i)
 				vm.stack.items[p] = &VariableValue{
@@ -420,6 +449,10 @@ func (vm *VM) Next() bool {
 					vm.stack.items[p],
 					vm.scope,
 				}
+			}
+
+			if f.Parent != nil {
+				vm.addVar("this", f.Parent)
 			}
 
 			vm.variableEnd = vm.stack.Current
@@ -433,9 +466,14 @@ func (vm *VM) Next() bool {
 				args[f.Parameters[i]] = vm.stack.Pop()
 			}
 
-			vm.stack.Push(f.F(args))
+			v, err := f.F(vm, f.Parent, args)
+			if err != nil {
+				vm.error(err.Error())
+			}
+
+			vm.stack.Push(v)
 		default:
-			vm.error(fmt.Sprintf("value called is not a function (%s)", v.String()))
+			vm.error(fmt.Sprintf("value called is not a function (%s)", v.DebugString()))
 			return false
 		}
 
@@ -495,6 +533,17 @@ func (vm *VM) Next() bool {
 	case InstructionNil:
 		vm.stack.Push(NilValue{})
 
+	case InstructionFormList:
+
+	case InstructionNewList:
+		vm.stack.Push(ListValue{[]Value{}})
+
+	case InstructionAppend:
+		value := vm.stack.Pop()
+		list := vm.stack.Pop().(ListValue)
+		list.items = append(list.items, value)
+		vm.stack.Push(list)
+
 	case InstructionDescend:
 		vm.descend()
 
@@ -517,6 +566,28 @@ func (vm *VM) Next() bool {
 
 		vm.stack.Push(r, l)
 
+	case InstructionAccessProperty:
+		source := vm.stack.Pop()
+		property := vm.ReadConstant()
+
+		member, err := source.Get(property.(StringValue).String())
+		if err != nil {
+			vm.error(err.Error())
+		}
+
+		// add parent if function with a little switcheroo
+		if member.Type() == FunctionValueType {
+			f := member.(FunctionValue)
+			f.Parent = source
+			member = f
+		} else if member.Type() == BuiltinFunctionValueType {
+			f := member.(BuiltinFunctionValue)
+			f.Parent = source
+			member = f
+		}
+
+		vm.stack.Push(member)
+
 	case InstructionBreakpoint:
 
 	default:
@@ -524,6 +595,52 @@ func (vm *VM) Next() bool {
 	}
 
 	return true
+}
+
+func (vm *VM) Call(v Value, args []Value) (Value, error) {
+	switch f := v.(type) {
+	case FunctionValue:
+		vm.call.Push(Call{
+			chunk:       vm.chunk,
+			ip:          vm.ip,
+			stackEnd:    vm.stack.Current,
+			variableEnd: vm.variableEnd,
+			scope:       vm.scope,
+		})
+
+		for i := 0; i < len(f.Params); i++ {
+			vm.addVar(f.Params[i], args[i])
+		}
+
+		if f.Parent != nil {
+			vm.addVar("this", f.Parent)
+		}
+
+		vm.variableEnd = vm.stack.Current
+
+		vm.chunk = f.Chunk
+		vm.ip = 0
+
+		for vm.chunk.Bytecode[vm.ip] != InstructionReturn && vm.Next() {
+		}
+
+		if vm.HasNext() {
+			vm.Next()
+		}
+
+		return vm.stack.Pop(), nil
+
+	case BuiltinFunctionValue:
+		argies := map[string]Value{}
+
+		for i, arg := range args {
+			argies[f.Parameters[i]] = arg
+		}
+
+		return f.F(vm, f.Parent, argies)
+	}
+
+	return nil, errors.New(fmt.Sprintf("value is not a function (%s)", v.DebugString()))
 }
 
 func (vm *VM) TryNextByte() (Bytecode, error) {

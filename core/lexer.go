@@ -34,6 +34,8 @@ const (
 
 	TokenOpenParenthesis
 	TokenCloseParenthesis
+	TokenOpenBracket
+	TokenCloseBracket
 	TokenOpenBrace
 	TokenCloseBrace
 
@@ -47,6 +49,7 @@ const (
 	TokenVar
 	TokenIf
 	TokenElse
+	TokenImport
 
 	TokenComma
 	TokenDot
@@ -144,6 +147,10 @@ func (t TokenType) String() string {
 		return "double ampersand"
 	case TokenDoublePipe:
 		return "double pipe"
+	case TokenOpenBracket:
+		return "open bracket"
+	case TokenCloseBracket:
+		return "close bracket"
 	}
 
 	return "UNDEFINED TOKENTYPE STRING CONVERSION"
@@ -210,6 +217,10 @@ func (l *Lexer) NextToken() (Token, error) {
 		return l.makeToken(TokenOpenParenthesis), nil
 	case ')':
 		return l.makeToken(TokenCloseParenthesis), nil
+	case '[':
+		return l.makeToken(TokenOpenBracket), nil
+	case ']':
+		return l.makeToken(TokenCloseBracket), nil
 	case '{':
 		return l.makeToken(TokenOpenBrace), nil
 	case '}':
@@ -309,6 +320,8 @@ func (l *Lexer) NextToken() (Token, error) {
 				return l.makeToken(TokenBreakpoint), nil
 			case "return":
 				return l.makeToken(TokenReturn), nil
+			case "import":
+				return l.makeToken(TokenImport), nil
 			default:
 				return l.makeToken(TokenName), nil
 			}

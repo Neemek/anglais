@@ -19,6 +19,7 @@ const (
 	ReferenceNodeType
 	BooleanNodeType
 	NilNodeType
+	ListNodeType
 	BinaryNodeType
 	BlockNodeType
 	ConditionalNodeType
@@ -27,6 +28,8 @@ const (
 	CallNodeType
 	FunctionNodeType
 	ReturnNodeType
+	AccessNodeType
+	ImportNodeType
 	BreakpointNodeType
 )
 
@@ -58,6 +61,14 @@ func (n NodeType) String() string {
 		return "Function"
 	case ReturnNodeType:
 		return "Return"
+	case ListNodeType:
+		return "List"
+	case AccessNodeType:
+		return "Access"
+	case BreakpointNodeType:
+		return "Breakpoint"
+	case ImportNodeType:
+		return "Import"
 	}
 	return "Invalid Node Type"
 }
@@ -101,6 +112,41 @@ func (n NumberNode) String() string {
 	return strconv.FormatFloat(float64(n.value), 'g', -1, NumberSize)
 }
 
+// ListNode a list or sequence of values (items)
+type ListNode struct {
+	items []Node
+}
+
+func (n ListNode) Type() NodeType {
+	return ListNodeType
+}
+
+func (n ListNode) String() string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for i, item := range n.items {
+		sb.WriteString(item.String())
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+type AccessNode struct {
+	source   Node
+	property string
+}
+
+func (n AccessNode) Type() NodeType {
+	return AccessNodeType
+}
+
+func (n AccessNode) String() string {
+	return fmt.Sprintf("(%s from %s)", n.property, n.source)
+}
+
 type BinaryOperation uint
 
 func (n BinaryOperation) String() string {
@@ -125,6 +171,10 @@ func (n BinaryOperation) String() string {
 		return "less or equal"
 	case BinaryGreaterEqual:
 		return "greater or equal"
+	case BinaryAnd:
+		return "and"
+	case BinaryOr:
+		return "or"
 	}
 
 	return "undefined arithmetic operation"
@@ -207,6 +257,18 @@ func (n BlockNode) String() string {
 	return builder.String()
 }
 
+type ImportNode struct {
+	path string
+}
+
+func (n ImportNode) Type() NodeType {
+	return ImportNodeType
+}
+
+func (n ImportNode) String() string {
+	return fmt.Sprintf("import %s", n.path)
+}
+
 // ConditionalNode conditionals (if statements)
 type ConditionalNode struct {
 	condition Node
@@ -253,9 +315,9 @@ func (n AssignNode) String() string {
 
 // function call
 type CallNode struct {
-	name string
-	args []Node
-	keep bool
+	source Node
+	args   []Node
+	keep   bool
 }
 
 func (n CallNode) Type() NodeType {
@@ -263,7 +325,7 @@ func (n CallNode) Type() NodeType {
 }
 
 func (n CallNode) String() string {
-	return fmt.Sprintf("call %s with args (%s)", n.name, n.args)
+	return fmt.Sprintf("call %s with args (%s)", n.source.String(), n.args)
 }
 
 // definition of function
