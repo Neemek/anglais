@@ -1,0 +1,12 @@
+
+func sum(a, b) {
+    return a + b
+}
+
+breakpoint
+
+assert(sum(1, 2) == 3)
+breakpoint
+
+assert(sum(3, 3) == 6)
+breakpoint

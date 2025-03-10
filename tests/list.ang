@@ -1,0 +1,24 @@
+list := []
+
+x := 1
+while x <= 1000 {
+    list = list.append(x)
+    assert(list.reduce(func(tot, a){
+        return tot + a
+    }, 0) == x*(x + 1)/2)
+
+    x = x + 1
+}
+
+func sum(a, b) {
+    return a + b
+}
+
+list = []
+x = 1
+while x <= 100 {
+    list = list.append(2*x - 1)
+    assert(list.reduce(sum, 0) == x*x)
+
+    x = x + 1
+}

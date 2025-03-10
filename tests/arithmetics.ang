@@ -1,0 +1,5 @@
+assert(1+1 == 2)
+assert(3*2 == 6)
+assert(3/4 == 0.75)
+assert(2 - 5 == -3)
+
