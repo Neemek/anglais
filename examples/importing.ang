@@ -1,0 +1,3 @@
+import "math.ang"
+
+write(sqrt(2))

@@ -71,8 +71,31 @@ func round(x) {
 # sin(x)
 # x: number; an angle in radians
 #   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
+#   TODO: use hashmap with precomputed values and linear interpolation
 func sin(x) {
-    # todo
+    f := 1
+    x = mod(x, 2*PI)
+    if x > PI {
+        x = -x
+        f = -1
+    }
+
+    # compute sine with a taylor series mock function of sine (valid between -pi and +pi)
+    tot := x
+    l := 1
+    i := 1
+    s := -1
+
+    while i <= 19 {
+        i = i + 2
+        l = s * l * x / i / (i-1)
+
+        tot = tot + l
+
+        s = -s
+    }
+
+    return tot*f
 }
 
 # cos(x)

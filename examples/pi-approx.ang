@@ -4,7 +4,7 @@
 # see: https://en.wikipedia.org/wiki/Basel_problem
 
 # The amount of terms
-terms := 100000000
+terms := 1000000
 
 # The running sum of terms
 tot := 0
