@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -48,24 +47,34 @@ func (v ValueType) String() string {
 	return "undefined"
 }
 
-// GoToValue convert go values to anglais VM-values. Works for some values (nil, bool, float64, string, slices, maps)
+// GoToValue convert go values to anglais VM-values. Works for some values (nil, bool, float64, int, string, slices, maps)
 func GoToValue(gov interface{}) Value {
 	switch v := gov.(type) {
 	case nil:
-		return NilValue{}
+		return &NilValue{}
 	case bool:
-		return BoolValue(v)
+		return &BoolValue{
+			v,
+		}
+	case int:
+		return &NumberValue{
+			float64(v),
+		}
 	case float64:
-		return NumberValue(v)
+		return &NumberValue{
+			v,
+		}
 	case string:
-		return StringValue(v)
+		return &StringValue{
+			v,
+		}
 	case []interface{}:
 		values := make([]Value, len(v))
 		for i, value := range v {
 			values[i] = GoToValue(value)
 		}
 
-		return ListValue{
+		return &ListValue{
 			values,
 		}
 	case map[string]interface{}:
@@ -74,7 +83,7 @@ func GoToValue(gov interface{}) Value {
 			values[key] = GoToValue(value)
 		}
 
-		return ObjectValue{
+		return &ObjectValue{
 			values,
 		}
 	}
@@ -101,49 +110,51 @@ type Value interface {
 
 type NilValue struct{}
 
-func (v NilValue) Type() ValueType {
+func (v *NilValue) Type() ValueType {
 	return NilValueType
 }
 
-func (v NilValue) String() string {
+func (v *NilValue) String() string {
 	return "nil"
 }
 
-func (v NilValue) DebugString() string {
+func (v *NilValue) DebugString() string {
 	return v.String()
 }
 
-func (v NilValue) Equals(other Value) bool {
+func (v *NilValue) Equals(other Value) bool {
 	return other.Type() == NilValueType
 }
 
-func (v NilValue) Get(key string) (Value, error) {
+func (v *NilValue) Get(_ string) (Value, error) {
 	return nil, errors.New("nil has no properties")
 }
 
-type BoolValue bool
+type BoolValue struct {
+	bool
+}
 
-func (v BoolValue) Type() ValueType {
+func (v *BoolValue) Type() ValueType {
 	return BoolValueType
 }
 
-func (v BoolValue) String() string {
-	if v {
+func (v *BoolValue) String() string {
+	if v.bool {
 		return "true"
 	} else {
 		return "false"
 	}
 }
 
-func (v BoolValue) DebugString() string {
+func (v *BoolValue) DebugString() string {
 	return v.String()
 }
 
-func (v BoolValue) Equals(other Value) bool {
-	return other.Type() == BoolValueType && bool(other.(BoolValue)) == bool(v)
+func (v *BoolValue) Equals(other Value) bool {
+	return other.Type() == BoolValueType && other.(*BoolValue).bool == v.bool
 }
 
-func (v BoolValue) Get(key string) (Value, error) {
+func (v *BoolValue) Get(key string) (Value, error) {
 	return nil, errors.New("booleans have no properties")
 }
 
@@ -152,11 +163,11 @@ type ObjectValue struct {
 	members map[string]Value
 }
 
-func (v ObjectValue) Type() ValueType {
+func (v *ObjectValue) Type() ValueType {
 	return ObjectValueType
 }
 
-func (v ObjectValue) String() string {
+func (v *ObjectValue) String() string {
 	out := "{"
 	for key, value := range v.members {
 		if out != "{" {
@@ -170,74 +181,111 @@ func (v ObjectValue) String() string {
 	return out
 }
 
-func (v ObjectValue) DebugString() string {
+func (v *ObjectValue) DebugString() string {
 	return v.String()
 }
 
-func (v ObjectValue) Equals(other Value) bool {
-	// TODO implement object equality check
-	return false
+func (v *ObjectValue) Equals(other Value) bool {
+	object, ok := other.(*ObjectValue)
+	if !ok {
+		return false
+	}
+
+	for key, value := range v.members {
+		if !object.members[key].Equals(value) {
+			return false
+		}
+	}
+
+	return true
 }
 
-func (v ObjectValue) Get(key string) (Value, error) {
-	if member := v.members[key]; member == nil {
-		return nil, errors.New("no property found with name \"" + key + "\"")
-	} else {
+var ObjectPrototype = map[string]Value{
+	"set": &BuiltinFunctionValue{
+		"set",
+		[]string{"property", "value"},
+		func(vm *VM, _this Value, params map[string]Value) (Value, error) {
+			this := _this.(*ObjectValue)
+
+			p := params["property"]
+			v, ok := params["value"].(*StringValue)
+			if !ok {
+				return nil, errors.New("property is not a string")
+			}
+
+			this.members[v.string] = p
+
+			return &NilValue{}, nil
+		},
+		nil,
+	},
+}
+
+func (v *ObjectValue) Get(key string) (Value, error) {
+	if member, ok := v.members[key]; ok {
 		return member, nil
+	} else if p, ok := ObjectPrototype[key]; ok {
+		return p, nil
+	} else {
+		return nil, errors.New("no property found with name \"" + key + "\"")
 	}
 }
 
 // NumberValue Integer or floating-point values
-type NumberValue float64
+type NumberValue struct {
+	float64
+}
 
 const NumberSize int = 64
 
-func (v NumberValue) Type() ValueType {
+func (v *NumberValue) Type() ValueType {
 	return NumberValueType
 }
 
-func (v NumberValue) String() string {
-	return strconv.FormatFloat(float64(v), 'g', -1, NumberSize)
+func (v *NumberValue) String() string {
+	return strconv.FormatFloat(v.float64, 'g', -1, NumberSize)
 }
 
-func (v NumberValue) DebugString() string {
+func (v *NumberValue) DebugString() string {
 	return v.String()
 }
 
-func (v NumberValue) Equals(other Value) bool {
-	return other.Type() == NumberValueType && float64(other.(NumberValue)) == float64(v)
+func (v *NumberValue) Equals(other Value) bool {
+	return other.Type() == NumberValueType && other.(*NumberValue).float64 == v.float64
 }
 
-func (v NumberValue) Get(key string) (Value, error) {
+func (v *NumberValue) Get(key string) (Value, error) {
 	// TODO maybe add standard functions for number values?
 	return nil, errors.New("numbers have no properties")
 }
 
-type StringValue string
+type StringValue struct {
+	string
+}
 
-func (v StringValue) Type() ValueType {
+func (v *StringValue) Type() ValueType {
 	return StringValueType
 }
 
-func (v StringValue) String() string {
-	return string(v)
+func (v *StringValue) String() string {
+	return v.string
 }
 
-func (v StringValue) DebugString() string {
+func (v *StringValue) DebugString() string {
 	return "\"" + v.String() + "\""
 }
 
-func (v StringValue) Equals(other Value) bool {
-	return other.Type() == StringValueType && string(other.(StringValue)) == string(v)
+func (v *StringValue) Equals(other Value) bool {
+	return other.Type() == StringValueType && other.(*StringValue).string == v.string
 }
 
-var StringPrototype = map[string]BuiltinFunctionValue{
+var StringPrototype = map[string]*BuiltinFunctionValue{
 	"split": {
 		"split",
 		[]string{"seperator"},
 		func(vm *VM, this Value, m map[string]Value) (Value, error) {
-			str := this.(StringValue).String()
-			sep := m["seperator"].(StringValue).String()
+			str := this.(*StringValue).String()
+			sep := m["seperator"].(*StringValue).String()
 
 			var out []string
 			tmp := strings.Builder{}
@@ -256,7 +304,7 @@ var StringPrototype = map[string]BuiltinFunctionValue{
 	},
 }
 
-func (v StringValue) Get(key string) (Value, error) {
+func (v *StringValue) Get(key string) (Value, error) {
 	if prop, ok := StringPrototype[key]; ok {
 		return prop, nil
 	}
@@ -269,11 +317,11 @@ type ListValue struct {
 	items []Value
 }
 
-func (v ListValue) Type() ValueType {
+func (v *ListValue) Type() ValueType {
 	return ListValueType
 }
 
-func (v ListValue) String() string {
+func (v *ListValue) String() string {
 	out := "["
 	for i, item := range v.items {
 		if i != 0 {
@@ -286,23 +334,37 @@ func (v ListValue) String() string {
 	return out
 }
 
-func (v ListValue) DebugString() string {
+func (v *ListValue) DebugString() string {
 	return v.String()
 }
 
-func (v ListValue) Equals(other Value) bool {
-	return other.Type() == ListValueType &&
-		slices.Equal(v.items, other.(ListValue).items)
+func (v *ListValue) Equals(other Value) bool {
+	if other.Type() != ListValueType {
+		return false
+	}
+
+	l := other.(*ListValue)
+
+	if len(v.items) != len(l.items) {
+		return false
+	}
+
+	for i, item := range l.items {
+		if !item.Equals(l.items[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
-var ListPrototype = map[string]BuiltinFunctionValue{
+var ListPrototype = map[string]*BuiltinFunctionValue{
 	"append": {
 		"append",
 		[]string{"item"},
 		func(_ *VM, this Value, p map[string]Value) (Value, error) {
-			return ListValue{
-				append(this.(ListValue).items, p["item"]),
-			}, nil
+			this.(*ListValue).items = append(this.(*ListValue).items, p["item"])
+			return &NilValue{}, nil
 		},
 		nil,
 	},
@@ -310,8 +372,8 @@ var ListPrototype = map[string]BuiltinFunctionValue{
 		"at",
 		[]string{"index"},
 		func(_ *VM, this Value, p map[string]Value) (Value, error) {
-			index := int(p["index"].(NumberValue))
-			items := this.(ListValue).items
+			items := this.(*ListValue).items
+			index := int(p["index"].(*NumberValue).float64)
 
 			if index >= len(items) {
 				return nil, errors.New(fmt.Sprintf("list index %x out of range", index))
@@ -325,7 +387,7 @@ var ListPrototype = map[string]BuiltinFunctionValue{
 		"length",
 		[]string{},
 		func(_ *VM, this Value, p map[string]Value) (Value, error) {
-			return NumberValue(len(this.(ListValue).items)), nil
+			return GoToValue(len(this.(*ListValue).items)), nil
 		},
 		nil,
 	},
@@ -333,13 +395,13 @@ var ListPrototype = map[string]BuiltinFunctionValue{
 		"map",
 		[]string{"f"},
 		func(vm *VM, value Value, m map[string]Value) (Value, error) {
-			list := value.(ListValue)
+			list := value.(*ListValue)
 
 			v := m["f"]
 			var f Value
-			f, ok := v.(FunctionValue)
+			f, ok := v.(*FunctionValue)
 			if !ok {
-				f, ok = v.(BuiltinFunctionValue)
+				f, ok = v.(*BuiltinFunctionValue)
 
 				if !ok {
 					return nil, errors.New(fmt.Sprintf("not a function to apply: %s", v))
@@ -365,7 +427,7 @@ var ListPrototype = map[string]BuiltinFunctionValue{
 		"reduce",
 		[]string{"f", "start"},
 		func(vm *VM, value Value, m map[string]Value) (Value, error) {
-			list := value.(ListValue)
+			list := value.(*ListValue)
 			f := m["f"]
 			sum := m["start"]
 
@@ -383,7 +445,7 @@ var ListPrototype = map[string]BuiltinFunctionValue{
 	},
 }
 
-func (v ListValue) Get(key string) (Value, error) {
+func (v *ListValue) Get(key string) (Value, error) {
 	if prop, ok := ListPrototype[key]; ok {
 		return prop, nil
 	}
@@ -398,25 +460,25 @@ type FunctionValue struct {
 	Parent Value
 }
 
-func (v FunctionValue) Type() ValueType {
+func (v *FunctionValue) Type() ValueType {
 	return FunctionValueType
 }
 
-func (v FunctionValue) String() string {
+func (v *FunctionValue) String() string {
 	return fmt.Sprintf("<function name=%s>", v.Name)
 }
 
-func (v FunctionValue) DebugString() string {
+func (v *FunctionValue) DebugString() string {
 	return v.String()
 }
 
-func (v FunctionValue) Equals(other Value) bool {
+func (v *FunctionValue) Equals(other Value) bool {
 	return other.Type() == FunctionValueType &&
-		v.Name == other.(FunctionValue).Name &&
-		v.Chunk == other.(FunctionValue).Chunk
+		v.Name == other.(*FunctionValue).Name &&
+		v.Chunk == other.(*FunctionValue).Chunk
 }
 
-func (v FunctionValue) Get(_ string) (Value, error) {
+func (v *FunctionValue) Get(_ string) (Value, error) {
 	return nil, errors.New("functions have no properties")
 }
 
@@ -431,20 +493,20 @@ func (v BuiltinFunctionValue) Type() ValueType {
 	return BuiltinFunctionValueType
 }
 
-func (v BuiltinFunctionValue) String() string {
+func (v *BuiltinFunctionValue) String() string {
 	return fmt.Sprintf("<function name=%s builtin>", v.Name)
 }
 
-func (v BuiltinFunctionValue) DebugString() string {
+func (v *BuiltinFunctionValue) DebugString() string {
 	return v.String()
 }
 
-func (v BuiltinFunctionValue) Equals(other Value) bool {
+func (v *BuiltinFunctionValue) Equals(other Value) bool {
 	return other.Type() == BuiltinFunctionValueType &&
-		v.Name == other.(BuiltinFunctionValue).Name
+		v.Name == other.(*BuiltinFunctionValue).Name
 }
 
-func (v BuiltinFunctionValue) Get(_ string) (Value, error) {
+func (v *BuiltinFunctionValue) Get(_ string) (Value, error) {
 	return nil, errors.New("functions have no properties")
 }
 
@@ -455,27 +517,27 @@ type VariableValue struct {
 	scope Pos
 }
 
-func (v VariableValue) Type() ValueType {
+func (v *VariableValue) Type() ValueType {
 	return VariableValueType
 }
 
-func (v VariableValue) String() string {
+func (v *VariableValue) String() string {
 	return fmt.Sprintf("<variable name=%s value=%s scope=%d>", v.name, v.value, v.scope)
 
 	// variables should not be accessed on the stack; normal values should be pushed and popped predictably
 	//panic("tried getting string value of a unreachable value")
 }
 
-func (v VariableValue) DebugString() string {
+func (v *VariableValue) DebugString() string {
 	return v.String()
 }
 
-func (v VariableValue) Equals(other Value) bool {
+func (v *VariableValue) Equals(other Value) bool {
 	return other.Type() == VariableValueType &&
-		v.name == other.(VariableValue).name &&
-		v.value.Equals(other.(VariableValue).value)
+		v.name == other.(*VariableValue).name &&
+		v.value.Equals(other.(*VariableValue).value)
 }
 
-func (v VariableValue) Get(_ string) (Value, error) {
+func (v *VariableValue) Get(_ string) (Value, error) {
 	return nil, errors.New("variables have no properties")
 }

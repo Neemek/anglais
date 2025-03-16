@@ -96,7 +96,8 @@ const (
 	// InstructionAppend Append to a list. stack: (... > list > item) => (... > list)
 	InstructionAppend
 	// InstructionFormList Form items on the stack into a list. The 2 bytes after the instructions are the amount of
-	// items to include minus one. (value of 0 => 1 item, value of 1 => 2 items, etc.)
+	// items to include minus one. (value of 0 => 1 item, value of 1 => 2 items, etc.) The order is reversed compared
+	// to on the stack; the top value on the stack is the last in the list.
 	InstructionFormList
 
 	// InstructionBreakpoint for debugging purposes
@@ -203,7 +204,7 @@ func (c Chunk) String() string {
 	for i, ct := range c.Constants {
 		b.WriteString(fmt.Sprintf("c=%d \t%s\n", i, ct))
 
-		f, ok := ct.(FunctionValue)
+		f, ok := ct.(*FunctionValue)
 		if ok {
 			b.WriteString(f.Chunk.String())
 		}
@@ -219,9 +220,10 @@ func NewChunk(bytecode []Bytecode, constants []Value) *Chunk {
 }
 
 func RegisterGOBTypes() {
-	gob.Register(StringValue(""))
-	gob.Register(NumberValue(0))
-	gob.Register(FunctionValue{
+	gob.Register(&StringValue{""})
+	gob.Register(&BoolValue{false})
+	gob.Register(&NumberValue{0})
+	gob.Register(&FunctionValue{
 		Name:   "",
 		Params: nil,
 		Chunk:  nil,
@@ -283,7 +285,7 @@ type Call struct {
 }
 
 var DefaultGlobals = map[string]Value{
-	"write": BuiltinFunctionValue{
+	"write": &BuiltinFunctionValue{
 		"write", // always remember where you come from...
 		[]string{"value"},
 		func(_ *VM, this Value, v map[string]Value) (Value, error) {
@@ -292,7 +294,7 @@ var DefaultGlobals = map[string]Value{
 		},
 		nil,
 	},
-	"print": BuiltinFunctionValue{
+	"print": &BuiltinFunctionValue{
 		"print",
 		[]string{"value"},
 		func(_ *VM, this Value, v map[string]Value) (Value, error) {
@@ -301,15 +303,43 @@ var DefaultGlobals = map[string]Value{
 		},
 		nil,
 	},
-	"assert": BuiltinFunctionValue{
-		"assert",
-		[]string{"condition"},
+	"format": &BuiltinFunctionValue{
+		"format",
+		[]string{"format_string", "values"},
+		func(vm *VM, value Value, m map[string]Value) (Value, error) {
+			valuies := m["values"].(*ListValue).items
+
+			return GoToValue(fmt.Sprintf(m["format_string"].String(), valuies)), nil
+		},
+		nil,
+	},
+	"assertEq": &BuiltinFunctionValue{
+		"assertEq",
+		[]string{"a", "b"},
 		func(vm *VM, this Value, params map[string]Value) (Value, error) {
-			if !params["condition"].(BoolValue) {
-				return nil, errors.New("assertion failed")
+			a := params["a"]
+			b := params["b"]
+
+			if !a.Equals(b) {
+				return nil, errors.New(fmt.Sprintf("assertion failed: %s does not equal %s", a, b))
 			}
 
-			return NilValue{}, nil
+			return &NilValue{}, nil
+		},
+		nil,
+	},
+	"assertNotEq": &BuiltinFunctionValue{
+		"assertNotEq",
+		[]string{"a", "b"},
+		func(vm *VM, this Value, params map[string]Value) (Value, error) {
+			a := params["a"]
+			b := params["b"]
+
+			if a.Equals(b) {
+				return nil, errors.New(fmt.Sprintf("assertion failed: %s does not equal %s", a, b))
+			}
+
+			return &NilValue{}, nil
 		},
 		nil,
 	},
@@ -330,6 +360,10 @@ func NewVM(chunk *Chunk, stackSize Pos, callstackSize Pos) *VM {
 // Next execute instruction
 // returns true if more instructions should be executed
 func (vm *VM) Next() bool {
+	if !vm.HasNext() {
+		return false
+	}
+
 	switch vm.NextByte() {
 	case InstructionReturn:
 		if vm.call.Current == 0 {
@@ -359,81 +393,81 @@ func (vm *VM) Next() bool {
 		vm.stack.Push(vm.ReadConstant())
 
 	case InstructionAdd:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(l + r)
+		vm.stack.Push(&NumberValue{l + r})
 
 	case InstructionSub:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(l - r)
+		vm.stack.Push(&NumberValue{l - r})
 
 	case InstructionMul:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(l * r)
+		vm.stack.Push(&NumberValue{l * r})
 
 	case InstructionDiv:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(l / r)
+		vm.stack.Push(&NumberValue{l / r})
 
 	case InstructionEquals:
 		vm.stack.Push(
-			BoolValue(vm.stack.Pop().Equals(vm.stack.Pop())),
+			&BoolValue{vm.stack.Pop().Equals(vm.stack.Pop())},
 		)
 
 	case InstructionNotEqual:
 		vm.stack.Push(
-			BoolValue(!vm.stack.Pop().Equals(vm.stack.Pop())),
+			&BoolValue{!vm.stack.Pop().Equals(vm.stack.Pop())},
 		)
 
 	case InstructionNot:
-		b := vm.stack.Pop().(BoolValue)
-		vm.stack.Push(!b)
+		b := vm.stack.Pop().(*BoolValue).bool
+		vm.stack.Push(&BoolValue{!b})
 
 	case InstructionAnd:
-		r := vm.stack.Pop().(BoolValue)
-		l := vm.stack.Pop().(BoolValue)
-		vm.stack.Push(l && r)
+		r := vm.stack.Pop().(*BoolValue).bool
+		l := vm.stack.Pop().(*BoolValue).bool
+		vm.stack.Push(&BoolValue{l && r})
 
 	case InstructionOr:
-		r := vm.stack.Pop().(BoolValue)
-		l := vm.stack.Pop().(BoolValue)
-		vm.stack.Push(r || l)
+		r := vm.stack.Pop().(*BoolValue).bool
+		l := vm.stack.Pop().(*BoolValue).bool
+		vm.stack.Push(&BoolValue{l || r})
 
 	case InstructionLess:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(BoolValue(l < r))
+		vm.stack.Push(&BoolValue{l < r})
 
 	case InstructionLessOrEqual:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(BoolValue(l <= r))
+		vm.stack.Push(&BoolValue{l <= r})
 
 	case InstructionGreater:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(BoolValue(l > r))
+		vm.stack.Push(&BoolValue{l > r})
 
 	case InstructionGreaterOrEqual:
-		r := vm.stack.Pop().(NumberValue)
-		l := vm.stack.Pop().(NumberValue)
+		r := vm.stack.Pop().(*NumberValue).float64
+		l := vm.stack.Pop().(*NumberValue).float64
 
-		vm.stack.Push(BoolValue(l >= r))
+		vm.stack.Push(&BoolValue{l >= r})
 
 	case InstructionCall:
 		v := vm.stack.Pop()
 		switch f := v.(type) {
-		case FunctionValue:
+		case *FunctionValue:
 			vm.call.Push(Call{
 				chunk:       vm.chunk,
 				ip:          vm.ip,
@@ -459,7 +493,7 @@ func (vm *VM) Next() bool {
 
 			vm.chunk = f.Chunk
 			vm.ip = 0
-		case BuiltinFunctionValue:
+		case *BuiltinFunctionValue:
 			args := map[string]Value{}
 
 			for i := len(f.Parameters) - 1; i >= 0; i-- {
@@ -473,7 +507,7 @@ func (vm *VM) Next() bool {
 
 			vm.stack.Push(v)
 		default:
-			vm.error(fmt.Sprintf("value called is not a function (%s)", v.DebugString()))
+			vm.error(fmt.Sprintf("value called is not a function (%s, type %T)", v.DebugString(), v))
 			return false
 		}
 
@@ -485,13 +519,13 @@ func (vm *VM) Next() bool {
 
 	case InstructionJumpFalse:
 		n := vm.NextU16()
-		if !vm.stack.Pop().(BoolValue) {
+		if !vm.stack.Pop().(*BoolValue).bool {
 			vm.ip += Pos(n)
 		}
 
 	case InstructionGetLocal:
-		name := vm.GetConstant(vm.NextByte()).(StringValue)
-		v := vm.getVar(string(name))
+		name := vm.GetConstant(vm.NextByte()).(*StringValue).string
+		v := vm.getVar(name)
 
 		if v == nil {
 			vm.error(fmt.Sprintf("cannot get local: undefined variable %s", name))
@@ -502,9 +536,9 @@ func (vm *VM) Next() bool {
 
 	case InstructionSetLocal:
 		value := vm.stack.Pop().(Value)
-		name := vm.GetConstant(vm.NextByte()).(StringValue)
+		name := vm.GetConstant(vm.NextByte()).(*StringValue).string
 
-		v := vm.getVar(string(name))
+		v := vm.getVar(name)
 
 		if v == nil {
 			vm.error(fmt.Sprintf("cannot set local: undefined variable %s", name))
@@ -514,33 +548,39 @@ func (vm *VM) Next() bool {
 
 	case InstructionDeclareLocal:
 		vm.addVar(
-			string(vm.GetConstant(vm.NextByte()).(StringValue)),
+			vm.GetConstant(vm.NextByte()).(*StringValue).string,
 			vm.stack.Pop().(Value),
 		)
 
 	case InstructionGetGlobal:
-		vm.stack.Push(vm.globals[string(vm.GetConstant(vm.NextByte()).(StringValue))])
+		vm.stack.Push(vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).string])
 
 	case InstructionSetGlobal:
-		vm.globals[string(vm.GetConstant(vm.NextByte()).(StringValue))] = vm.stack.Pop()
+		vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).string] = vm.stack.Pop()
 
 	case InstructionTrue:
-		vm.stack.Push(BoolValue(true))
+		vm.stack.Push(&BoolValue{true})
 
 	case InstructionFalse:
-		vm.stack.Push(BoolValue(false))
+		vm.stack.Push(&BoolValue{false})
 
 	case InstructionNil:
-		vm.stack.Push(NilValue{})
+		vm.stack.Push(&NilValue{})
 
 	case InstructionFormList:
+		n := int(vm.NextU16())
+
+		items := make([]Value, n+1)
+		for i := 0; i <= n; i++ {
+			items[n-i] = vm.stack.Pop()
+		}
 
 	case InstructionNewList:
-		vm.stack.Push(ListValue{[]Value{}})
+		vm.stack.Push(&ListValue{[]Value{}})
 
 	case InstructionAppend:
 		value := vm.stack.Pop()
-		list := vm.stack.Pop().(ListValue)
+		list := vm.stack.Pop().(*ListValue)
 		list.items = append(list.items, value)
 		vm.stack.Push(list)
 
@@ -552,13 +592,13 @@ func (vm *VM) Next() bool {
 
 	case InstructionStringConversion:
 		v := vm.stack.Pop()
-		vm.stack.Push(StringValue(v.String()))
+		vm.stack.Push(&StringValue{v.String()})
 
 	case InstructionStringConcatenation:
-		r := vm.stack.Pop().(StringValue)
-		l := vm.stack.Pop().(StringValue)
+		r := vm.stack.Pop().(*StringValue).string
+		l := vm.stack.Pop().(*StringValue).string
 
-		vm.stack.Push(l + r)
+		vm.stack.Push(&StringValue{l + r})
 
 	case InstructionSwap:
 		r := vm.stack.Pop()
@@ -570,20 +610,16 @@ func (vm *VM) Next() bool {
 		source := vm.stack.Pop()
 		property := vm.ReadConstant()
 
-		member, err := source.Get(property.(StringValue).String())
+		member, err := source.Get(property.(*StringValue).String())
 		if err != nil {
 			vm.error(err.Error())
 		}
 
-		// add parent if function with a little switcheroo
+		// add parent if function
 		if member.Type() == FunctionValueType {
-			f := member.(FunctionValue)
-			f.Parent = source
-			member = f
+			member.(*FunctionValue).Parent = source
 		} else if member.Type() == BuiltinFunctionValueType {
-			f := member.(BuiltinFunctionValue)
-			f.Parent = source
-			member = f
+			member.(*BuiltinFunctionValue).Parent = source
 		}
 
 		vm.stack.Push(member)
@@ -599,7 +635,7 @@ func (vm *VM) Next() bool {
 
 func (vm *VM) Call(v Value, args []Value) (Value, error) {
 	switch f := v.(type) {
-	case FunctionValue:
+	case *FunctionValue:
 		vm.call.Push(Call{
 			chunk:       vm.chunk,
 			ip:          vm.ip,
@@ -630,7 +666,7 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 
 		return vm.stack.Pop(), nil
 
-	case BuiltinFunctionValue:
+	case *BuiltinFunctionValue:
 		argies := map[string]Value{}
 
 		for i, arg := range args {

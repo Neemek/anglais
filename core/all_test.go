@@ -16,7 +16,7 @@ func GetAllTestCases() map[string]AllTestCase {
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(1),
+					&NumberValue{1},
 					0,
 				},
 			},
@@ -26,7 +26,7 @@ func GetAllTestCases() map[string]AllTestCase {
 			[]Value{
 				&VariableValue{
 					"sum",
-					FunctionValue{
+					&FunctionValue{
 						Name:   "sum",
 						Params: []string{"a", "b"},
 						Chunk: &Chunk{
@@ -38,7 +38,7 @@ func GetAllTestCases() map[string]AllTestCase {
 								InstructionReturn,
 								InstructionAscend,
 							},
-							Constants: []Value{StringValue("a"), StringValue("b")},
+							Constants: []Value{&StringValue{"a"}, &StringValue{"b"}},
 						},
 					},
 					0,
@@ -86,7 +86,7 @@ func TestAll(t *testing.T) {
 			vm := NewVM(c.Chunk, 256, 256)
 
 			t.Log("Running bytecode")
-			for vm.HasNext() && vm.Next() {
+			for vm.Next() {
 			}
 
 			t.Log("Comparing stacks")
@@ -112,7 +112,7 @@ func BenchmarkAll(b *testing.B) {
 
 				vm := NewVM(c.Chunk, 256, 256)
 
-				for vm.HasNext() && vm.Next() {
+				for vm.Next() {
 				}
 			}
 		})

@@ -3,10 +3,10 @@ a := 2
 
 {
     a := 3
-    assert(a == 3)
+    assertEq(a, 3)
 
     a = 4
-    assert(a == 4)
+    assertEq(a, 4)
 }
 
-assert(a == 2)
+assertEq(a, 2)

@@ -11,7 +11,7 @@ func CompareChunks(t *testing.T, got *Chunk, want *Chunk) {
 	}
 
 	for i, v := range got.Constants {
-		if v != want.Constants[i] {
+		if i < len(want.Constants) && !v.Equals(want.Constants[i]) {
 			t.Errorf("constant %d does not match (%s and %s)", i, v.String(), want.Constants[i].String())
 		}
 	}
@@ -49,7 +49,7 @@ func TestNewVM(t *testing.T) {
 	chunk := NewChunk([]Bytecode{
 		InstructionConstant, 0,
 	}, []Value{
-		NumberValue(0),
+		&NumberValue{0},
 	})
 	stackSize := Pos(256)
 	callstackSize := Pos(256)
@@ -107,10 +107,10 @@ func GetExecutionTestData() map[string]struct {
 				InstructionAdd,
 			},
 				[]Value{
-					NumberValue(1), NumberValue(2),
+					&NumberValue{1}, &NumberValue{2},
 				}),
 			[]Value{
-				NumberValue(3),
+				&NumberValue{3},
 			},
 		},
 		"push_constant": {
@@ -119,11 +119,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionConstant, 0,
 				},
 				[]Value{
-					NumberValue(1),
+					&NumberValue{1},
 				},
 			),
 			[]Value{
-				NumberValue(1),
+				&NumberValue{1},
 			},
 		},
 		"push_true": {
@@ -134,7 +134,7 @@ func GetExecutionTestData() map[string]struct {
 				[]Value{},
 			),
 			[]Value{
-				BoolValue(true),
+				&BoolValue{true},
 			},
 		},
 		"push_false": {
@@ -145,7 +145,7 @@ func GetExecutionTestData() map[string]struct {
 				[]Value{},
 			),
 			[]Value{
-				BoolValue(false),
+				&BoolValue{false},
 			},
 		},
 		"push_nil": {
@@ -156,7 +156,7 @@ func GetExecutionTestData() map[string]struct {
 				[]Value{},
 			),
 			[]Value{
-				NilValue{},
+				&NilValue{},
 			},
 		},
 		"empty": {
@@ -181,11 +181,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionDiv,
 				},
 				[]Value{
-					NumberValue(2), NumberValue(1), NumberValue(5), NumberValue(6),
+					&NumberValue{2}, &NumberValue{1}, &NumberValue{5}, &NumberValue{6},
 				},
 			),
 			[]Value{
-				NumberValue((2.0 + 1.0) * 5.0 / (6.0 - 2.0)),
+				&NumberValue{3.75},
 			},
 		},
 		"equality_true": {
@@ -196,11 +196,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionEquals,
 				},
 				[]Value{
-					NumberValue(1),
+					&NumberValue{1},
 				},
 			),
 			[]Value{
-				BoolValue(true),
+				&BoolValue{true},
 			},
 		},
 		"equality_false": {
@@ -211,11 +211,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionEquals,
 				},
 				[]Value{
-					NumberValue(1), NumberValue(2),
+					&NumberValue{1}, &NumberValue{2},
 				},
 			),
 			[]Value{
-				BoolValue(false),
+				&BoolValue{false},
 			},
 		},
 		"inequality_false": {
@@ -226,11 +226,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionNotEqual,
 				},
 				[]Value{
-					NumberValue(1),
+					&NumberValue{1},
 				},
 			),
 			[]Value{
-				BoolValue(false),
+				&BoolValue{false},
 			},
 		},
 		"inequality_true": {
@@ -241,11 +241,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionNotEqual,
 				},
 				[]Value{
-					NumberValue(1), NumberValue(2),
+					&NumberValue{1}, &NumberValue{2},
 				},
 			),
 			[]Value{
-				BoolValue(true),
+				&BoolValue{true},
 			},
 		},
 		"not_true": {
@@ -257,7 +257,7 @@ func GetExecutionTestData() map[string]struct {
 				[]Value{},
 			),
 			[]Value{
-				BoolValue(false),
+				&BoolValue{false},
 			},
 		},
 		"not_false": {
@@ -269,7 +269,7 @@ func GetExecutionTestData() map[string]struct {
 				[]Value{},
 			),
 			[]Value{
-				BoolValue(true),
+				&BoolValue{true},
 			},
 		},
 		"jump": {
@@ -280,11 +280,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionConstant, 1, // should execute
 				},
 				[]Value{
-					NumberValue(0), NumberValue(1),
+					&NumberValue{0}, &NumberValue{1},
 				},
 			),
 			[]Value{
-				NumberValue(1),
+				&NumberValue{1},
 			},
 		},
 		"jump_false/false": {
@@ -296,11 +296,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionConstant, 1, // should execute
 				},
 				[]Value{
-					NumberValue(0), NumberValue(1),
+					&NumberValue{0}, &NumberValue{1},
 				},
 			),
 			[]Value{
-				NumberValue(1),
+				&NumberValue{1},
 			},
 		},
 		"jump_false/true": {
@@ -312,11 +312,11 @@ func GetExecutionTestData() map[string]struct {
 					InstructionConstant, 1, // should execute
 				},
 				[]Value{
-					NumberValue(0), NumberValue(1),
+					&NumberValue{0}, &NumberValue{1},
 				},
 			),
 			[]Value{
-				NumberValue(0), NumberValue(1),
+				&NumberValue{0}, &NumberValue{1},
 			},
 		},
 		"declare_local": {
@@ -326,13 +326,13 @@ func GetExecutionTestData() map[string]struct {
 					InstructionDeclareLocal, 1,
 				},
 				[]Value{
-					NumberValue(0), StringValue("a"),
+					&NumberValue{0}, &StringValue{"a"},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(0),
+					&NumberValue{0},
 					0,
 				},
 			},
@@ -346,13 +346,13 @@ func GetExecutionTestData() map[string]struct {
 					InstructionSetLocal, 1, // reassign
 				},
 				[]Value{
-					NumberValue(0), StringValue("a"), NumberValue(1),
+					&NumberValue{0}, &StringValue{"a"}, &NumberValue{1},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(1),
+					&NumberValue{1},
 					0,
 				},
 			},
@@ -365,16 +365,16 @@ func GetExecutionTestData() map[string]struct {
 					InstructionGetLocal, 1, // reassign
 				},
 				[]Value{
-					NumberValue(0), StringValue("a"),
+					&NumberValue{0}, &StringValue{"a"},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(0),
+					&NumberValue{0},
 					0,
 				},
-				NumberValue(0),
+				&NumberValue{0},
 			},
 		},
 		"get_reassigned_local": {
@@ -388,17 +388,17 @@ func GetExecutionTestData() map[string]struct {
 					InstructionGetLocal, 1,
 				},
 				[]Value{
-					NumberValue(0), StringValue("a"), NumberValue(1),
+					&NumberValue{0}, &StringValue{"a"}, &NumberValue{1},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(1),
+					&NumberValue{1},
 					0,
 				},
-				NumberValue(0),
-				NumberValue(1),
+				&NumberValue{0},
+				&NumberValue{1},
 			},
 		},
 		"variable_scope": {
@@ -416,15 +416,15 @@ func GetExecutionTestData() map[string]struct {
 					InstructionAscend,
 				},
 				[]Value{
-					NumberValue(0), StringValue("a"),
-					NumberValue(1), StringValue("b"),
-					NumberValue(2), StringValue("c"),
+					&NumberValue{0}, &StringValue{"a"},
+					&NumberValue{1}, &StringValue{"b"},
+					&NumberValue{2}, &StringValue{"c"},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(0),
+					&NumberValue{0},
 					0,
 				},
 			},
@@ -438,9 +438,9 @@ func GetExecutionTestData() map[string]struct {
 					InstructionCall,
 				},
 				[]Value{
-					NumberValue(1),
-					NumberValue(2),
-					FunctionValue{
+					&NumberValue{1},
+					&NumberValue{2},
+					&FunctionValue{
 						Name:   "sum",
 						Params: []string{"a", "b"},
 						Chunk: NewChunk(
@@ -451,14 +451,14 @@ func GetExecutionTestData() map[string]struct {
 								InstructionReturn,
 							},
 							[]Value{
-								StringValue("a"), StringValue("b"),
+								&StringValue{"a"}, &StringValue{"b"},
 							},
 						),
 					},
 				},
 			),
 			[]Value{
-				NumberValue(3),
+				&NumberValue{3},
 			},
 		},
 		"function_calling_function": {
@@ -472,9 +472,9 @@ func GetExecutionTestData() map[string]struct {
 					InstructionCall,
 				},
 				[]Value{
-					NumberValue(1),
-					NumberValue(2),
-					FunctionValue{
+					&NumberValue{1},
+					&NumberValue{2},
+					&FunctionValue{
 						Name:   "sum",
 						Params: []string{"a", "b"},
 						Chunk: NewChunk(
@@ -487,11 +487,11 @@ func GetExecutionTestData() map[string]struct {
 								InstructionReturn,
 							},
 							[]Value{
-								StringValue("a"), StringValue("b"), StringValue("square"),
+								&StringValue{"a"}, &StringValue{"b"}, &StringValue{"square"},
 							},
 						),
 					},
-					FunctionValue{
+					&FunctionValue{
 						Name:   "square",
 						Params: []string{"n"},
 						Chunk: NewChunk(
@@ -502,17 +502,17 @@ func GetExecutionTestData() map[string]struct {
 								InstructionReturn,
 							},
 							[]Value{
-								StringValue("n"),
+								&StringValue{"n"},
 							},
 						),
 					},
-					StringValue("square"),
+					&StringValue{"square"},
 				},
 			),
 			[]Value{
 				&VariableValue{
 					"square",
-					FunctionValue{
+					&FunctionValue{
 						Name:   "square",
 						Params: []string{"n"},
 						Chunk: NewChunk(
@@ -523,13 +523,13 @@ func GetExecutionTestData() map[string]struct {
 								InstructionReturn,
 							},
 							[]Value{
-								StringValue("n"),
+								&StringValue{"n"},
 							},
 						),
 					},
 					0,
 				},
-				NumberValue(5),
+				&NumberValue{5},
 			},
 		},
 	}
@@ -542,7 +542,7 @@ func TestVM_Execution(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			vm := NewVM(test.chunk, 256, 256)
 
-			for vm.HasNext() && vm.Next() {
+			for vm.Next() {
 			}
 
 			CompareStacks(t, test.resultingStack, vm.stack)
@@ -557,7 +557,7 @@ func BenchmarkVM_Execution(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				vm := NewVM(test.chunk, 256, 256)
-				for vm.HasNext() && vm.Next() {
+				for vm.Next() {
 				}
 			}
 		})
@@ -571,7 +571,7 @@ func TestVM_NextByte(t *testing.T) {
 				InstructionConstant, 0,
 			},
 			[]Value{
-				NumberValue(0),
+				&NumberValue{0},
 			},
 		),
 		16,
@@ -682,7 +682,7 @@ func TestVM_Jump(t *testing.T) {
 				InstructionConstant, 2,
 			},
 			[]Value{
-				NumberValue(0), NumberValue(1), NumberValue(2),
+				&NumberValue{0}, &NumberValue{1}, &NumberValue{2},
 			},
 		),
 		16,
@@ -707,7 +707,7 @@ func TestVM_JumpFalse(t *testing.T) {
 				InstructionConstant, 2,
 			},
 			[]Value{
-				NumberValue(0), NumberValue(1), NumberValue(2),
+				&NumberValue{0}, &NumberValue{1}, &NumberValue{2},
 			},
 		),
 		16,
@@ -733,7 +733,7 @@ func TestVM_DontJumpFalse(t *testing.T) {
 				InstructionConstant, 2,
 			},
 			[]Value{
-				NumberValue(0), NumberValue(1), NumberValue(2),
+				&NumberValue{0}, &NumberValue{1}, &NumberValue{2},
 			},
 		),
 		16,

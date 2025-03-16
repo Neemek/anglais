@@ -151,6 +151,8 @@ func (t TokenType) String() string {
 		return "open bracket"
 	case TokenCloseBracket:
 		return "close bracket"
+	case TokenImport:
+		return "import"
 	}
 
 	return "UNDEFINED TOKENTYPE STRING CONVERSION"

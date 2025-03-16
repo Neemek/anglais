@@ -96,7 +96,7 @@ func run(this js.Value, args []js.Value) interface{} {
 	vm := core.NewVM(compiler.Chunk, 256, 256)
 
 	// overwrite output
-	vm.SetGlobal("write", core.BuiltinFunctionValue{
+	vm.SetGlobal("write", &core.BuiltinFunctionValue{
 		Name:       "write",
 		Parameters: []string{"value"},
 		F: func(vm *core.VM, this core.Value, v map[string]core.Value) (core.Value, error) {
@@ -105,7 +105,7 @@ func run(this js.Value, args []js.Value) interface{} {
 			return nil, nil
 		},
 	})
-	vm.SetGlobal("print", core.BuiltinFunctionValue{
+	vm.SetGlobal("print", &core.BuiltinFunctionValue{
 		Name:       "print",
 		Parameters: []string{"value"},
 		F: func(vm *core.VM, this core.Value, v map[string]core.Value) (core.Value, error) {
@@ -115,7 +115,7 @@ func run(this js.Value, args []js.Value) interface{} {
 		},
 	})
 
-	for vm.HasNext() && vm.Next() {
+	for vm.Next() {
 	}
 
 	log.Println("Finished executing")

@@ -65,10 +65,10 @@ func GetTokenTestData() map[string]TokenTestData {
 						&BinaryNode{
 							BinaryAddition,
 							&NumberNode{
-								value: NumberValue(1),
+								1,
 							},
 							&NumberNode{
-								value: NumberValue(2),
+								2,
 							},
 						},
 						false,
@@ -170,22 +170,22 @@ func GetTokenTestData() map[string]TokenTestData {
 										&NumberNode{2},
 										&NumberNode{1},
 									},
-									&NumberNode{NumberValue(5)},
+									&NumberNode{5},
 								},
 								&BinaryNode{
 									BinaryDivision,
-									&NumberNode{NumberValue(3)},
+									&NumberNode{3},
 									&BinaryNode{
 										BinarySubtraction,
-										&NumberNode{NumberValue(6)},
-										&NumberNode{NumberValue(2)},
+										&NumberNode{6},
+										&NumberNode{2},
 									},
 								},
 							},
 							&BinaryNode{
 								BinaryDivision,
-								&NumberNode{NumberValue(10)},
-								&NumberNode{NumberValue(2)},
+								&NumberNode{10},
+								&NumberNode{2},
 							},
 						},
 						false,
@@ -242,7 +242,7 @@ func GetTokenTestData() map[string]TokenTestData {
 								"a",
 							},
 							&NumberNode{
-								NumberValue(0),
+								0,
 							},
 						},
 						do: &BlockNode{
@@ -250,7 +250,7 @@ func GetTokenTestData() map[string]TokenTestData {
 								&AssignNode{
 									"b",
 									&NumberNode{
-										NumberValue(1),
+										1,
 									},
 									false,
 								},
@@ -288,7 +288,7 @@ func GetTokenTestData() map[string]TokenTestData {
 								"a",
 							},
 							&NumberNode{
-								NumberValue(0),
+								0,
 							},
 						},
 						do: &BlockNode{
@@ -296,7 +296,7 @@ func GetTokenTestData() map[string]TokenTestData {
 								&AssignNode{
 									"b",
 									&NumberNode{
-										NumberValue(1),
+										1,
 									},
 									false,
 								},
@@ -307,7 +307,7 @@ func GetTokenTestData() map[string]TokenTestData {
 								&AssignNode{
 									"b",
 									&NumberNode{
-										NumberValue(0),
+										0,
 									},
 									false,
 								},

@@ -40,7 +40,7 @@ func GetCompileTestData() map[string]CompileTestData {
 				"\"Hello world!\"",
 			},
 			[]Value{
-				StringValue("Hello world!"),
+				&StringValue{"Hello world!"},
 			},
 		},
 		"conditional_false": {
@@ -75,7 +75,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(0),
+					&NumberValue{0},
 					0,
 				},
 			},
@@ -112,7 +112,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(1),
+					&NumberValue{1},
 					0,
 				},
 			},
@@ -159,7 +159,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(2),
+					&NumberValue{2},
 					0,
 				},
 			},
@@ -206,7 +206,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"a",
-					NumberValue(1),
+					&NumberValue{1},
 					0,
 				},
 			},
@@ -222,7 +222,7 @@ func GetCompileTestData() map[string]CompileTestData {
 				},
 			},
 			[]Value{
-				NumberValue(3),
+				&NumberValue{3},
 			},
 		},
 		"sum_function": {&BlockNode{
@@ -251,7 +251,8 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"sum",
-					FunctionValue{
+
+					&FunctionValue{
 						"sum",
 						[]string{"a", "b"},
 						NewChunk(
@@ -264,7 +265,7 @@ func GetCompileTestData() map[string]CompileTestData {
 								InstructionAscend,
 							},
 							[]Value{
-								StringValue("a"), StringValue("b"),
+								&StringValue{"a"}, &StringValue{"b"},
 							},
 						),
 						nil,
@@ -308,7 +309,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			[]Value{
 				&VariableValue{
 					"a",
-					FunctionValue{
+					&FunctionValue{
 						"a",
 						[]string{},
 						NewChunk(
@@ -321,7 +322,7 @@ func GetCompileTestData() map[string]CompileTestData {
 								InstructionAscend,
 							},
 							[]Value{
-								NumberValue(1), StringValue("b"),
+								&NumberValue{1}, &StringValue{"b"},
 							},
 						),
 						nil,
@@ -344,7 +345,7 @@ func printChunk(t *testing.T, name string, chunk *Chunk) {
 	for i, ct := range chunk.Constants {
 		t.Logf("c=%d \t%s", i, ct)
 
-		f, ok := ct.(FunctionValue)
+		f, ok := ct.(*FunctionValue)
 		if ok {
 			printChunk(t, f.Name, f.Chunk)
 		}
@@ -371,7 +372,7 @@ func TestCompile(t *testing.T) {
 			printChunk(t, name, c.Chunk)
 
 			t.Log("Executing bytecode")
-			for vm.HasNext() && vm.Next() {
+			for vm.Next() {
 			}
 			t.Log("Executed bytecode")
 
@@ -437,7 +438,7 @@ func TestCompiler_CleanStack(t *testing.T) {
 			c.Compile(tc.tree)
 
 			vm := NewVM(c.Chunk, 256, 256)
-			for vm.HasNext() && vm.Next() {
+			for vm.Next() {
 			}
 
 			// make sure stack has only assigned values

@@ -101,7 +101,7 @@ func (n StringNode) String() string {
 }
 
 type NumberNode struct {
-	value NumberValue
+	value float64
 }
 
 func (n NumberNode) Type() NodeType {
@@ -109,7 +109,7 @@ func (n NumberNode) Type() NodeType {
 }
 
 func (n NumberNode) String() string {
-	return strconv.FormatFloat(float64(n.value), 'g', -1, NumberSize)
+	return strconv.FormatFloat(n.value, 'g', -1, NumberSize)
 }
 
 // ListNode a list or sequence of values (items)

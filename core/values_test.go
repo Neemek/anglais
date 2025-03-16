@@ -16,26 +16,26 @@ func CompareValues(t *testing.T, got Value, want Value) {
 		t.Logf("Both are nil")
 		return
 	case BoolValueType:
-		if got.(BoolValue) != want.(BoolValue) {
-			t.Errorf("bool value mismatch: got %v, want %v", got.(BoolValue), want.(BoolValue))
+		if got.(*BoolValue).bool != want.(*BoolValue).bool {
+			t.Errorf("bool value mismatch: got %v, want %v", got.(*BoolValue), want.(*BoolValue))
 		} else {
-			t.Logf("Both are same boolean (%s)", want.(BoolValue).String())
+			t.Logf("Both are same boolean (%s)", want.(*BoolValue).String())
 		}
 	case NumberValueType:
-		if got.(NumberValue) != want.(NumberValue) {
-			t.Errorf("number value mismatch: got %v, want %v", got.(NumberValue), want.(NumberValue))
+		if got.(*NumberValue).float64 != want.(*NumberValue).float64 {
+			t.Errorf("number value mismatch: got %v, want %v", got.(*NumberValue), want.(*NumberValue))
 		} else {
-			t.Logf("Both are same number (%s)", got.(NumberValue).String())
+			t.Logf("Both are same number (%s)", got.(*NumberValue).String())
 		}
 	case StringValueType:
-		if got.(StringValue) != want.(StringValue) {
-			t.Errorf("string value mismatch: got %v, want %v", got.(StringValue), want.(StringValue))
+		if got.(*StringValue).string != want.(*StringValue).string {
+			t.Errorf("string value mismatch: got %v, want %v", got.(*StringValue), want.(*StringValue))
 		} else {
-			t.Logf("Both are same string (%s)", got.(StringValue).String())
+			t.Logf("Both are same string (%s)", got.(*StringValue).String())
 		}
 	case FunctionValueType:
-		n := got.(FunctionValue)
-		m := want.(FunctionValue)
+		n := got.(*FunctionValue)
+		m := want.(*FunctionValue)
 
 		if n.Name != m.Name {
 			t.Errorf("function name mismatch: got %v, want %v", n.Name, m.Name)
@@ -53,8 +53,8 @@ func CompareValues(t *testing.T, got Value, want Value) {
 
 		CompareChunks(t, n.Chunk, m.Chunk)
 	case BuiltinFunctionValueType:
-		n := got.(BuiltinFunctionValue)
-		m := want.(BuiltinFunctionValue)
+		n := got.(*BuiltinFunctionValue)
+		m := want.(*BuiltinFunctionValue)
 
 		if n.Name != m.Name {
 			t.Errorf("builtin function name mismatch: got %v, want %v", n.Name, m.Name)

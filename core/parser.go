@@ -158,7 +158,7 @@ func (p *Parser) factor() (Node, error) {
 		}
 
 		return &NumberNode{
-			NumberValue(num),
+			num,
 		}, nil
 
 	case TokenTrue:
@@ -209,7 +209,7 @@ func (p *Parser) factor() (Node, error) {
 		}
 		return &BinaryNode{
 			BinarySubtraction,
-			&NumberNode{NumberValue(0)},
+			&NumberNode{0},
 			f,
 		}, nil
 

@@ -1,5 +1,5 @@
-assert(1+1 == 2)
-assert(3*2 == 6)
-assert(3/4 == 0.75)
-assert(2 - 5 == -3)
+assertEq(1+1, 2)
+assertEq(3*2, 6)
+assertEq(3/4, 0.75)
+assertEq(2 - 5, -3)
 

@@ -147,7 +147,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		log.Println("=v= output =v=")
 	}
 	// execute order 66
-	for vm.HasNext() && vm.Next() {
+	for vm.Next() {
 	}
 
 	return nil

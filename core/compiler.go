@@ -1,5 +1,9 @@
 package core
 
+import (
+	"fmt"
+)
+
 type Compiler struct {
 	Chunk *Chunk
 	ip    Pos
@@ -45,7 +49,7 @@ func (c *Compiler) add(instruction Bytecode) {
 func (c *Compiler) addConstant(value Value) {
 	chunk := c.Chunk
 	for i := 0; i < len(chunk.Constants); i++ {
-		if chunk.Constants[i] == value {
+		if chunk.Constants[i].Equals(value) {
 			c.add(Bytecode(i))
 
 			return
@@ -57,26 +61,41 @@ func (c *Compiler) addConstant(value Value) {
 	c.add(Bytecode(len(chunk.Constants) - 1))
 }
 
-func (c *Compiler) Compile(tree Node) {
+func (c *Compiler) Compile(tree Node) error {
 	if tree == nil {
-		panic("nil value parse tree node")
+		panic("compile called with nil value")
 	}
 
 	switch tree.Type() {
 	case StringNodeType:
 		c.add(InstructionConstant)
-		c.addConstant(StringValue(tree.(*StringNode).value))
+		c.addConstant(&StringValue{
+			tree.(*StringNode).value,
+		})
 
 	case NumberNodeType:
 		c.add(InstructionConstant)
-		c.addConstant(tree.(*NumberNode).value)
+		c.addConstant(&NumberValue{tree.(*NumberNode).value})
 
 	case ListNodeType:
-		v := tree.(*ListNode).items
-		c.add(InstructionNewList)
-		for _, n := range v {
-			c.Compile(n)
-			c.add(InstructionAppend)
+		l := tree.(*ListNode)
+
+		if len(l.items) == 0 {
+			c.add(InstructionNewList)
+		} else if c.isTreeConstant(l) {
+			v, err := c.compute(l)
+			if err != nil {
+				panic(err) // this shouldn't happen
+			}
+
+			c.add(InstructionConstant)
+			c.addConstant(v)
+		} else {
+			for _, n := range l.items {
+				c.Compile(n)
+			}
+			c.add(InstructionFormList)
+			c.addU16(uint16(len(l.items)))
 		}
 
 	case ReferenceNodeType:
@@ -201,12 +220,17 @@ func (c *Compiler) Compile(tree Node) {
 		for _, p := range n.params {
 			c.registerVar(p)
 		}
-		c.Compile(n.logic)
+
+		err := c.Compile(n.logic)
+		if err != nil {
+			return err
+		}
+
 		if n.logic.Type() != BlockNodeType {
 			c.stack.Pop()
 		}
 
-		mc.Constants[fi] = FunctionValue{
+		mc.Constants[fi] = &FunctionValue{
 			n.name,
 			n.params,
 			c.Chunk,
@@ -219,9 +243,14 @@ func (c *Compiler) Compile(tree Node) {
 
 	case AccessNodeType:
 		n := tree.(*AccessNode)
-		c.Compile(n.source)
+		err := c.Compile(n.source)
+		if err != nil {
+			return err
+		}
 		c.add(InstructionAccessProperty)
-		c.addConstant(StringValue(n.property))
+		c.addConstant(&StringValue{
+			n.property,
+		})
 
 	case ImportNodeType:
 		n := tree.(*ImportNode)
@@ -229,21 +258,46 @@ func (c *Compiler) Compile(tree Node) {
 		t := c.resolveImport(n.path).(*BlockNode)
 
 		for _, statement := range t.statements {
-			c.Compile(statement)
+			err := c.Compile(statement)
+			if err != nil {
+				return err
+			}
 		}
 
 	case ReturnNodeType:
-		c.Compile(tree.(*ReturnNode).value)
+		err := c.Compile(tree.(*ReturnNode).value)
+		if err != nil {
+			return err
+		}
 		c.add(InstructionReturn)
 
 	case BreakpointNodeType:
 		c.add(InstructionBreakpoint)
 	}
+
+	return nil
 }
 
-func (c *Compiler) compileBinary(binary *BinaryNode) {
-	c.Compile(binary.Left)
-	c.Compile(binary.Right)
+func (c *Compiler) compileBinary(binary *BinaryNode) error {
+	if c.isTreeConstant(binary) {
+		v, err := c.compute(binary)
+		if err != nil {
+			return err
+		}
+
+		c.add(InstructionConstant)
+		c.addConstant(v)
+		return nil
+	}
+
+	err := c.Compile(binary.Left)
+	if err != nil {
+		return err
+	}
+	err = c.Compile(binary.Right)
+	if err != nil {
+		return err
+	}
 
 	switch binary.BinaryOperation {
 	case BinaryAddition:
@@ -271,20 +325,29 @@ func (c *Compiler) compileBinary(binary *BinaryNode) {
 	case BinaryOr:
 		c.add(InstructionOr)
 	}
+
+	return nil
 }
 
 func (c *Compiler) getVar(name string) {
 	if c.isGlobal(name) {
 		c.add(InstructionGetGlobal)
-		c.addConstant(StringValue(name))
+		c.addConstant(&StringValue{
+			name,
+		})
 	} else {
 		c.add(InstructionGetLocal)
-		c.addConstant(StringValue(name))
+		c.addConstant(&StringValue{
+			name,
+		})
 	}
 }
 
-func (c *Compiler) setVar(name string, value Node, declare bool) {
-	c.Compile(value)
+func (c *Compiler) setVar(name string, value Node, declare bool) error {
+	err := c.Compile(value)
+	if err != nil {
+		return err
+	}
 
 	if declare {
 		c.add(InstructionDeclareLocal)
@@ -293,7 +356,11 @@ func (c *Compiler) setVar(name string, value Node, declare bool) {
 		c.add(InstructionSetLocal)
 	}
 
-	c.addConstant(StringValue(name))
+	c.addConstant(&StringValue{
+		name,
+	})
+
+	return nil
 }
 
 // keep track that a variable is declared but doesn't necessarily have a deducible type
@@ -312,6 +379,112 @@ func (c *Compiler) isLocal(name string) bool {
 		}
 	}
 	return false
+}
+
+// isTreeConstant check if a node tree is constant (predictable)
+func (c *Compiler) isTreeConstant(tree Node) bool {
+	switch tree.Type() {
+	case StringNodeType, NumberNodeType, BooleanNodeType, NilNodeType:
+		return true
+	case ListNodeType:
+		for _, item := range tree.(*ListNode).items {
+			if !c.isTreeConstant(item) {
+				return false
+			}
+		}
+
+		return true
+	case BinaryNodeType:
+		return c.isTreeConstant(tree.(*BinaryNode).Left) && c.isTreeConstant(tree.(*BinaryNode).Right)
+	case BlockNodeType, ConditionalNodeType, LoopNodeType, AssignNodeType, CallNodeType, FunctionNodeType,
+		ReturnNodeType, AccessNodeType, BreakpointNodeType, ImportNodeType, ReferenceNodeType:
+		return false
+	default:
+		panic(fmt.Sprintf("unexpected node %s", tree))
+	}
+}
+
+func (c *Compiler) compute(tree Node) (Value, error) {
+	switch n := tree.(type) {
+	case *StringNode:
+		return &StringValue{
+			n.value,
+		}, nil
+
+	case *NumberNode:
+		return &NumberValue{
+			n.value,
+		}, nil
+
+	case *BooleanNode:
+		return &BoolValue{
+			n.value,
+		}, nil
+
+	case *NilNode:
+		return &NilValue{}, nil
+
+	case *ListNode:
+		items := make([]Value, len(n.items))
+		var err error
+		for i, item := range n.items {
+			items[i], err = c.compute(item)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &ListValue{
+			items,
+		}, nil
+
+	case *BinaryNode:
+		return c.computeBinary(n)
+
+	default:
+		panic(fmt.Sprintf("unexpected node %s, %T", tree.String(), tree))
+	}
+}
+
+func (c *Compiler) computeBinary(n *BinaryNode) (Value, error) {
+	l, err := c.compute(n.Left)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.compute(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	var v interface{}
+	switch n.BinaryOperation {
+	case BinaryAddition:
+		v = l.(*NumberValue).float64 + r.(*NumberValue).float64
+	case BinarySubtraction:
+		v = l.(*NumberValue).float64 - r.(*NumberValue).float64
+	case BinaryMultiplication:
+		v = l.(*NumberValue).float64 * r.(*NumberValue).float64
+	case BinaryDivision:
+		v = l.(*NumberValue).float64 / r.(*NumberValue).float64
+	case BinaryAnd:
+		v = l.(*BoolValue).bool && r.(*BoolValue).bool
+	case BinaryOr:
+		v = l.(*BoolValue).bool && r.(*BoolValue).bool
+	case BinaryEquality:
+		v = l.Equals(r)
+	case BinaryInequality:
+		v = !l.Equals(r.(*BoolValue))
+	case BinaryLess:
+		v = l.(*NumberValue).float64 < r.(*NumberValue).float64
+	case BinaryGreater:
+		v = l.(*NumberValue).float64 > r.(*NumberValue).float64
+	case BinaryLessEqual:
+		v = l.(*NumberValue).float64 <= r.(*NumberValue).float64
+	case BinaryGreaterEqual:
+		v = l.(*NumberValue).float64 >= r.(*NumberValue).float64
+	}
+
+	return GoToValue(v), nil
 }
 
 // isGlobal whether a variable is defined in the standard global environment
