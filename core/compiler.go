@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -20,17 +21,19 @@ type ImportsResolver interface {
 }
 
 type LocalVariable struct {
-	name  string
-	scope int
+	name      string
+	signature TypeSignature
+	scope     int
 }
 
 func NewCompiler() *Compiler {
 	c := &Compiler{
-		Chunk:   NewChunk(make([]Bytecode, 0), make([]Value, 0)),
-		ip:      0,
-		scope:   0,
-		stack:   NewStack[LocalVariable](256),
-		imports: make(map[string]Node),
+		NewChunk(make([]Bytecode, 0), make([]Value, 0)),
+		0,
+		0,
+		make(map[string]Node),
+		nil,
+		NewStack[LocalVariable](256),
 	}
 
 	return c
@@ -253,8 +256,8 @@ func (c *Compiler) Compile(tree Node) error {
 		// reset instruction pointer (ip)
 		c.ip = 0
 
-		for _, p := range n.params {
-			c.registerVar(p)
+		for _, p := range n.parameters {
+			c.registerVar(p.name, p.signature)
 		}
 
 		err := c.Compile(n.logic)
@@ -268,7 +271,7 @@ func (c *Compiler) Compile(tree Node) error {
 
 		mc.Constants[fi] = &FunctionValue{
 			n.name,
-			n.params,
+			n.parameters,
 			c.Chunk,
 			nil,
 		}
@@ -365,6 +368,149 @@ func (c *Compiler) compileBinary(binary *BinaryNode) error {
 	return nil
 }
 
+func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
+	switch tree.Type() {
+	case StringNodeType:
+		return &StringSignature{}, nil
+	case NumberNodeType:
+		return &NumberSignature{}, nil
+	case ReferenceNodeType:
+		return c.getVarSignature(tree.(*ReferenceNode).name)
+	case BooleanNodeType:
+		return &BooleanSignature{}, nil
+	case NilNodeType:
+		return &NilSignature{}, nil
+	case ListNodeType:
+		return &ListSignature{}, nil
+	case BinaryNodeType:
+		n := tree.(*BinaryNode)
+		l, err := c.deduceSignature(n.Left)
+		if err != nil {
+			return nil, err
+		}
+		r, err := c.deduceSignature(n.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		if l != r {
+			return nil, errors.New(fmt.Sprintf("cannot perform binary %s on different types: %s and %s", n.BinaryOperation, l, r))
+		}
+
+		switch n.BinaryOperation {
+		case BinarySubtraction, BinaryMultiplication, BinaryDivision:
+			if l.Type() != TypeNumber {
+				return nil, errors.New(fmt.Sprintf("cannot perform binary %s non-number type %s", n.BinaryOperation, l))
+			}
+
+			return &NumberSignature{}, nil
+		case BinaryAddition:
+			switch l.Type() {
+			case TypeString:
+				return &StringSignature{}, nil
+			case TypeNumber:
+				return &NumberSignature{}, nil
+			default:
+				return nil, errors.New(fmt.Sprintf("cannot perform binary addition on type %s", l))
+			}
+		case BinaryAnd, BinaryOr:
+			if l.Type() != TypeBoolean {
+				return nil, errors.New(fmt.Sprintf("cannot perform binary %s on type %s", l, n.BinaryOperation))
+			}
+
+			return &BooleanSignature{}, nil
+		case BinaryEquality, BinaryInequality:
+			return &BooleanSignature{}, nil
+		case BinaryLess, BinaryGreater, BinaryLessEqual, BinaryGreaterEqual:
+			if l.Type() != TypeNumber {
+				return nil, errors.New(fmt.Sprintf("cannot perform number comparison (%s) on type %s", l, n.BinaryOperation))
+			}
+
+			return &BooleanSignature{}, nil
+		}
+	case AccessNodeType:
+		n := tree.(*AccessNode)
+		sig, err := c.deduceSignature(n.source)
+		if err != nil {
+			return nil, err
+		}
+
+		switch sig.Type() {
+		case TypeString, TypeList:
+		case TypeObject:
+			return sig.(*ObjectSignature).members[n.property], nil
+
+		case TypeNumber, TypeBoolean, TypeNil, TypeFunction:
+		default:
+			panic(fmt.Sprintf("cannot access property from value of type %s", sig))
+		}
+
+	case CallNodeType:
+		n := tree.(*CallNode)
+		sig, err := c.deduceSignature(n.source)
+		if err != nil {
+			return nil, err
+		}
+
+		if sig.Type() != TypeFunction {
+			return nil, errors.New(fmt.Sprintf("cannot call value of type %s", sig.Type()))
+		}
+
+		f := sig.(*FunctionSignature)
+
+		if len(n.args) != len(f.in) {
+			return nil, errors.New(fmt.Sprintf("bad argument count (expected %v, got %v)", len(f.in), len(n.args)))
+		}
+
+		// type check arguments
+		for i, arg := range n.args {
+			sig, err := c.deduceSignature(arg)
+			if err != nil {
+				return nil, err
+			}
+
+			if !sig.Matches(f.in[i]) {
+			}
+		}
+
+		return f.out, nil
+
+	case FunctionNodeType:
+		n := tree.(*FunctionNode)
+
+		sigs := make([]TypeSignature, len(n.parameters))
+
+		for i, p := range n.parameters {
+			sigs[i] = p.signature
+		}
+
+		return &FunctionSignature{
+			sigs,
+			n.yield,
+		}, nil
+
+	default:
+		panic("unhandled default case")
+	}
+
+	panic(fmt.Sprintf("impossible to deduce signature of %s", tree.Type()))
+}
+
+func (c *Compiler) getVarSignature(name string) (TypeSignature, error) {
+	if c.isGlobal(name) {
+		return SignatureOf(DefaultGlobals[name]), nil
+	}
+
+	for i := c.stack.Current - 1; i >= 0; i-- {
+		v := c.stack.items[i]
+		if v.name == name {
+			return v.signature, nil
+		}
+	}
+
+	return nil, errors.New(fmt.Sprintf("variable %s not defined", name))
+}
+
 func (c *Compiler) getVar(name string) {
 	if c.isGlobal(name) {
 		c.add(InstructionGetGlobal)
@@ -387,7 +533,11 @@ func (c *Compiler) setVar(name string, value Node, declare bool) error {
 
 	if declare {
 		c.add(InstructionDeclareLocal)
-		c.registerVar(name)
+		t, err := c.deduceSignature(value)
+		if err != nil {
+			return err
+		}
+		c.registerVar(name, t)
 	} else {
 		c.add(InstructionSetLocal)
 	}
@@ -400,9 +550,10 @@ func (c *Compiler) setVar(name string, value Node, declare bool) error {
 }
 
 // keep track that a variable is declared but doesn't necessarily have a deducible type
-func (c *Compiler) registerVar(name string) {
+func (c *Compiler) registerVar(name string, t TypeSignature) {
 	c.stack.Push(LocalVariable{
 		name,
+		t,
 		int(c.scope),
 	})
 }

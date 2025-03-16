@@ -6,7 +6,7 @@ fibonacci_numbers := [
     1346269, 2178309, 3524578, 5702887, 9227465, 14930352
 ]
 
-func fib(n) {
+func fib(n: number) number {
     if n < 2 {
         return n
     }

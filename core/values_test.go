@@ -60,19 +60,10 @@ func CompareValues(t *testing.T, got Value, want Value) {
 			t.Errorf("builtin function name mismatch: got %v, want %v", n.Name, m.Name)
 		}
 
-		if len(n.Parameters) != len(m.Parameters) {
-			t.Errorf("builtin function parameter count mismatch: got %v, want %v", n.Parameters, m.Parameters)
+		if !n.Signature.Matches(m.Signature) {
+			t.Errorf("builtin function parameter count mismatch: got %v, want %v", n, m)
 		}
 
-		for i, v := range n.Parameters {
-			if v != m.Parameters[i] {
-				t.Errorf("builtin function parameter %d mismatch: got %v, want %v", i, v, m.Parameters[i])
-			}
-		}
-
-		if &n.F != &m.F {
-			t.Errorf("builtin function f mismatch: got %v, want %v", &n.F, &m.F)
-		}
 	case VariableValueType:
 		n := got.(*VariableValue)
 		m := want.(*VariableValue)

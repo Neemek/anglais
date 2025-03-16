@@ -1,0 +1,16 @@
+import "math.ang"
+
+func r_x(t) {
+    return 8*(exp(-t) - t)
+}
+
+func r_y(t) {
+    return 5*(exp(-t) - t)
+}
+
+func r(t) {
+    return format("(%s, %s)", [r_x(t), r_y(t)])
+}
+
+write(r(1))
+write()

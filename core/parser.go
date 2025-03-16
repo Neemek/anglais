@@ -243,6 +243,11 @@ func (p *Parser) factor() (Node, error) {
 			return nil, err
 		}
 
+		sig, err := p.parseSignature()
+		if err != nil {
+			return nil, err
+		}
+
 		b, err := p.block(false)
 		if err != nil {
 			return nil, err
@@ -251,6 +256,7 @@ func (p *Parser) factor() (Node, error) {
 		return &FunctionNode{
 			"*",
 			params,
+			sig,
 			b,
 		}, nil
 
@@ -564,6 +570,8 @@ func (p *Parser) statement() (Node, error) {
 			return nil, err
 		}
 
+		yield, err := p.parseSignature()
+
 		b, err := p.block(false)
 		if err != nil {
 			return nil, err
@@ -574,6 +582,7 @@ func (p *Parser) statement() (Node, error) {
 			&FunctionNode{
 				name,
 				params,
+				yield,
 				b,
 			},
 			true,
@@ -678,15 +687,27 @@ func (p *Parser) parseArgs() ([]Node, error) {
 }
 
 // parseParams parse parameters and parentheses
-func (p *Parser) parseParams() ([]string, error) {
+func (p *Parser) parseParams() ([]FunctionParameter, error) {
 	if err := p.expect(TokenOpenParenthesis); err != nil {
 		return nil, err
 	}
-	params := make([]string, 0)
+	params := make([]FunctionParameter, 0)
 
 	if p.accept(TokenName) {
 		name := (*p.prev).Lexeme
-		params = append(params, name)
+		if err := p.expect(TokenColon); err != nil {
+			return nil, err
+		}
+
+		t, err := p.parseSignature()
+		if err != nil {
+			return nil, err
+		}
+
+		params = append(params, FunctionParameter{
+			name,
+			t,
+		})
 		for !p.accept(TokenCloseParenthesis) {
 			if err := p.expect(TokenComma); err != nil {
 				return nil, err
@@ -695,7 +716,19 @@ func (p *Parser) parseParams() ([]string, error) {
 				return nil, err
 			}
 			name = (*p.prev).Lexeme
-			params = append(params, name)
+			if err := p.expect(TokenColon); err != nil {
+				return nil, err
+			}
+
+			t, err := p.parseSignature()
+			if err != nil {
+				return nil, err
+			}
+
+			params = append(params, FunctionParameter{
+				name,
+				t,
+			})
 		}
 	} else {
 		if err := p.expect(TokenCloseParenthesis); err != nil {
@@ -704,4 +737,71 @@ func (p *Parser) parseParams() ([]string, error) {
 	}
 
 	return params, nil
+}
+
+func (p *Parser) parseSignature() (TypeSignature, error) {
+	if p.accept(TokenFunc) {
+		if err := p.expect(TokenCloseParenthesis); err != nil {
+			return nil, err
+		}
+
+		var in []TypeSignature
+
+		for !p.accept(TokenCloseParenthesis) && (len(in) == 0 || p.accept(TokenComma)) {
+			sig, err := p.parseSignature()
+
+			if err != nil {
+				return nil, err
+			}
+
+			in = append(in, sig)
+		}
+
+		if err := p.expect(TokenCloseParenthesis); err != nil {
+			return nil, err
+		}
+
+		out, err := p.parseSignature()
+		if err != nil {
+			return nil, err
+		}
+
+		return &FunctionSignature{
+			in,
+			out,
+		}, nil
+	}
+
+	if err := p.expect(TokenName); err != nil {
+		return nil, err
+	}
+	name := (*p.prev).Lexeme
+
+	switch name {
+	case "string":
+		return &StringSignature{}, nil
+	case "number":
+		return &NumberSignature{}, nil
+	case "boolean":
+		return &BooleanSignature{}, nil
+	case "list":
+		if err := p.expect(TokenOpenBracket); err != nil {
+			return nil, err
+		}
+
+		contents, err := p.parseSignature()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := p.expect(TokenCloseBracket); err != nil {
+			return nil, err
+		}
+
+		return &ListSignature{
+			contents,
+		}, nil
+	}
+
+	panic("unsupported type: " + name)
 }

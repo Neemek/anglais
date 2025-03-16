@@ -287,38 +287,56 @@ type Call struct {
 var DefaultGlobals = map[string]Value{
 	"write": &BuiltinFunctionValue{
 		"write", // always remember where you come from...
-		[]string{"value"},
-		func(_ *VM, this Value, v map[string]Value) (Value, error) {
-			println(v["value"].String())
+		&FunctionSignature{
+			[]TypeSignature{&StringSignature{}},
+			&NilSignature{},
+		},
+		func(_ *VM, this Value, v []Value) (Value, error) {
+			println(v[0].String())
 			return nil, nil
 		},
 		nil,
 	},
 	"print": &BuiltinFunctionValue{
 		"print",
-		[]string{"value"},
-		func(_ *VM, this Value, v map[string]Value) (Value, error) {
-			print(v["value"].String())
+		&FunctionSignature{
+			[]TypeSignature{&StringSignature{}},
+			&NilSignature{},
+		},
+		func(_ *VM, this Value, v []Value) (Value, error) {
+			print(v[0].String())
 			return nil, nil
 		},
 		nil,
 	},
 	"format": &BuiltinFunctionValue{
 		"format",
-		[]string{"format_string", "values"},
-		func(vm *VM, value Value, m map[string]Value) (Value, error) {
-			valuies := m["values"].(*ListValue).items
+		&FunctionSignature{
+			[]TypeSignature{
+				&StringSignature{},
+				&StringSignature{},
+			},
+			&StringSignature{},
+		},
+		func(vm *VM, value Value, m []Value) (Value, error) {
+			valuies := m[1].(*ListValue).items
 
-			return GoToValue(fmt.Sprintf(m["format_string"].String(), valuies)), nil
+			return GoToValue(fmt.Sprintf(m[0].String(), valuies)), nil
 		},
 		nil,
 	},
 	"assertEq": &BuiltinFunctionValue{
 		"assertEq",
-		[]string{"a", "b"},
-		func(vm *VM, this Value, params map[string]Value) (Value, error) {
-			a := params["a"]
-			b := params["b"]
+		&FunctionSignature{
+			[]TypeSignature{
+				&AnySignature{},
+				&AnySignature{},
+			},
+			&NilSignature{},
+		},
+		func(vm *VM, this Value, params []Value) (Value, error) {
+			a := params[0]
+			b := params[1]
 
 			if !a.Equals(b) {
 				return nil, errors.New(fmt.Sprintf("assertion failed: %s does not equal %s", a, b))
@@ -330,10 +348,16 @@ var DefaultGlobals = map[string]Value{
 	},
 	"assertNotEq": &BuiltinFunctionValue{
 		"assertNotEq",
-		[]string{"a", "b"},
-		func(vm *VM, this Value, params map[string]Value) (Value, error) {
-			a := params["a"]
-			b := params["b"]
+		&FunctionSignature{
+			[]TypeSignature{
+				&AnySignature{},
+				&AnySignature{},
+			},
+			&NilSignature{},
+		},
+		func(vm *VM, this Value, params []Value) (Value, error) {
+			a := params[0]
+			b := params[1]
 
 			if a.Equals(b) {
 				return nil, errors.New(fmt.Sprintf("assertion failed: %s does not equal %s", a, b))
@@ -479,7 +503,7 @@ func (vm *VM) Next() bool {
 			for i := len(f.Params) - 1; i >= 0; i-- {
 				p := vm.stack.Current - Pos(len(f.Params)) + Pos(i)
 				vm.stack.items[p] = &VariableValue{
-					f.Params[i],
+					f.Params[i].name,
 					vm.stack.items[p],
 					vm.scope,
 				}
@@ -494,10 +518,10 @@ func (vm *VM) Next() bool {
 			vm.chunk = f.Chunk
 			vm.ip = 0
 		case *BuiltinFunctionValue:
-			args := map[string]Value{}
+			args := make([]Value, len(f.Signature.in))
 
-			for i := len(f.Parameters) - 1; i >= 0; i-- {
-				args[f.Parameters[i]] = vm.stack.Pop()
+			for i := len(f.Signature.in) - 1; i >= 0; i-- {
+				args[i] = vm.stack.Pop()
 			}
 
 			v, err := f.F(vm, f.Parent, args)
@@ -645,7 +669,7 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 		})
 
 		for i := 0; i < len(f.Params); i++ {
-			vm.addVar(f.Params[i], args[i])
+			vm.addVar(f.Params[i].name, args[i])
 		}
 
 		if f.Parent != nil {
@@ -667,13 +691,7 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 		return vm.stack.Pop(), nil
 
 	case *BuiltinFunctionValue:
-		argies := map[string]Value{}
-
-		for i, arg := range args {
-			argies[f.Parameters[i]] = arg
-		}
-
-		return f.F(vm, f.Parent, argies)
+		return f.F(vm, f.Parent, args)
 	}
 
 	return nil, errors.New(fmt.Sprintf("value is not a function (%s)", v.DebugString()))

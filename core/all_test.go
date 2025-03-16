@@ -22,13 +22,22 @@ func GetAllTestCases() map[string]AllTestCase {
 			},
 		},
 		"func": {
-			"func sum(a, b) {\n\treturn a + b\n}\nsum(1, 2)",
+			"func sum(a: number, b: number) {\n\treturn a + b\n}\nsum(1, 2)",
 			[]Value{
 				&VariableValue{
 					"sum",
 					&FunctionValue{
-						Name:   "sum",
-						Params: []string{"a", "b"},
+						Name: "sum",
+						Params: []FunctionParameter{
+							{
+								"a",
+								&NumberSignature{},
+							},
+							{
+								"b",
+								&NumberSignature{},
+							},
+						},
 						Chunk: &Chunk{
 							Bytecode: []Bytecode{
 								InstructionDescend,

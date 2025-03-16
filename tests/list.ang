@@ -3,14 +3,14 @@ list := []
 x := 1
 while x <= 1000 {
     list.append(x)
-    assertEq(list.reduce(func(tot, a){
+    assertEq(list.reduce(func(tot: number, a: number) number {
         return tot + a
     }, 0), x*(x + 1)/2)
 
     x = x + 1
 }
 
-func sum(a, b) {
+func sum(a: number, b: number) number {
     return a + b
 }
 

@@ -7,7 +7,7 @@ E := 2.718281828459045235360287471352
 #   Get the absolute value of a number. If x is negative, the returned
 #   value is positive and equal to `-x`. If x is positive or zero, the
 #   returned value is x.
-func abs(x) {
+func abs(x: number) number {
     # if the number is negative
     if x < 0 {
         # negate it so it's positive
@@ -23,7 +23,7 @@ MAX_SQRT_DX := 0.0000001
 # x: number
 #   Calculate the approximate square root using newton's method until
 #   the accuracy has increased by less than the variable `MAX_SQRT_DX`.
-func sqrt(x) {
+func sqrt(x: number) number {
     ng := x
     g := 1
 
@@ -42,7 +42,7 @@ func sqrt(x) {
 #   Return the whole number part of the number. if x is a whole number,
 #   the returned value is x. If x is not a whole number, the closest
 #   whole number which is less than or equal to x is returned.
-func floor(x) {
+func floor(x: number) number {
     # todo
 }
 
@@ -51,14 +51,14 @@ func floor(x) {
 #   Return the whole number part of the number. if x is a whole number,
 #   the returned value is x. If x is not a whole number, the closest
 #   whole number which is greater than or equal to x is returned.
-func ceil(x) {
+func ceil(x: number) number {
     # todo
 }
 
 # round(x)
 # x: number
 #   Return the closest whole number to the value x.
-func round(x) {
+func round(x: number) number {
     f := floor(x)
 
     if x - f > 0.5 {
@@ -72,7 +72,7 @@ func round(x) {
 # x: number; an angle in radians
 #   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
 #   TODO: use hashmap with precomputed values and linear interpolation
-func sin(x) {
+func sin(x: number) number {
     f := 1
     x = mod(x, 2*PI)
     if x > PI {
@@ -101,14 +101,14 @@ func sin(x) {
 # cos(x)
 # x: number; an angle in radians
 #   Get the cosine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
-func cos(x) {
+func cos(x: number) number {
     # todo
 }
 
 # tan(x)
 # x: number; an angle in radians
 #   Get the tangent of an angle. https://en.wikipedia.org/wiki/Tangent
-func tan(x) {
+func tan(x: number) number {
     # todo
 }
 
@@ -116,7 +116,7 @@ func tan(x) {
 # x: number; any number
 # n: number; the number to divide by
 #   Return the rest from a division of x by n.
-func mod(x, n) {
+func mod(x: number, n: number) {
     if x == 0 {
         return 0
     }
@@ -139,7 +139,7 @@ func mod(x, n) {
 #   Get the approximate value of the natural logarithm
 #   This function uses newton's method to approximate.
 LN_ACC := 0.000000001
-func ln(x) {
+func ln(x: number) number {
     pg := 0
     g := 1
 
@@ -157,7 +157,7 @@ func ln(x) {
 #   This value is only reasonable if 0<x<1.
 #   It is approximated using the taylor series of e**x.
 SM_EXP_ACC := 0.00000000001
-func sm_exp(x) {
+func sm_exp(x: number) number {
     p_tot := 0
     tot := 1
     n := 1
@@ -178,7 +178,7 @@ func sm_exp(x) {
 # exp(x)
 # x: number; any number
 #   Get an approximate value of e raised to the power of x.
-func exp(x) {
+func exp(x: number) number {
     n := abs(x)
     tot := 1
     while n >= 1 {
@@ -201,6 +201,6 @@ func exp(x) {
 # x: number; any number. The base
 # p: number; the value of the exponent
 #   Raise any number to any power (x^p)
-func pow(x, p) {
+func pow(x: number, p: number) number {
     return exp(p*ln(x))
 }

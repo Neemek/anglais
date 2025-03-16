@@ -441,8 +441,17 @@ func GetExecutionTestData() map[string]struct {
 					&NumberValue{1},
 					&NumberValue{2},
 					&FunctionValue{
-						Name:   "sum",
-						Params: []string{"a", "b"},
+						Name: "sum",
+						Params: []FunctionParameter{
+							{
+								"a",
+								&NumberSignature{},
+							},
+							{
+								"b",
+								&NumberSignature{},
+							},
+						},
 						Chunk: NewChunk(
 							[]Bytecode{
 								InstructionGetLocal, 0,
@@ -475,8 +484,17 @@ func GetExecutionTestData() map[string]struct {
 					&NumberValue{1},
 					&NumberValue{2},
 					&FunctionValue{
-						Name:   "sum",
-						Params: []string{"a", "b"},
+						Name: "sum",
+						Params: []FunctionParameter{
+							{
+								"a",
+								&NumberSignature{},
+							},
+							{
+								"b",
+								&NumberSignature{},
+							},
+						},
 						Chunk: NewChunk(
 							[]Bytecode{
 								InstructionGetLocal, 0,
@@ -492,8 +510,13 @@ func GetExecutionTestData() map[string]struct {
 						),
 					},
 					&FunctionValue{
-						Name:   "square",
-						Params: []string{"n"},
+						Name: "square",
+						Params: []FunctionParameter{
+							{
+								"n",
+								&NumberSignature{},
+							},
+						},
 						Chunk: NewChunk(
 							[]Bytecode{
 								InstructionGetLocal, 0,
@@ -513,8 +536,13 @@ func GetExecutionTestData() map[string]struct {
 				&VariableValue{
 					"square",
 					&FunctionValue{
-						Name:   "square",
-						Params: []string{"n"},
+						Name: "square",
+						Params: []FunctionParameter{
+							{
+								"n",
+								&NumberSignature{},
+							},
+						},
 						Chunk: NewChunk(
 							[]Bytecode{
 								InstructionGetLocal, 0,

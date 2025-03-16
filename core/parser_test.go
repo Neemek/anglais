@@ -1,7 +1,9 @@
 package core
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -338,9 +340,14 @@ func GetTokenTestData() map[string]TokenTestData {
 				NewToken(TokenFunc, 3, 4, 0, "func"),
 				NewToken(TokenOpenParenthesis, 7, 1, 0, "("),
 				NewToken(TokenName, 8, 1, 0, "a"),
+				NewToken(TokenColon, 9, 1, 0, ":"),
+				NewToken(TokenName, 10, 5, 0, "number"),
 				NewToken(TokenComma, 9, 1, 0, ","),
 				NewToken(TokenName, 10, 1, 0, "b"),
+				NewToken(TokenColon, 9, 1, 0, ":"),
+				NewToken(TokenName, 10, 5, 0, "number"),
 				NewToken(TokenCloseParenthesis, 11, 1, 0, ")"),
+				NewToken(TokenName, 10, 5, 0, "number"),
 
 				NewToken(TokenOpenBrace, 12, 1, 1, "{"),
 				NewToken(TokenReturn, 13, 6, 1, "return"),
@@ -357,7 +364,17 @@ func GetTokenTestData() map[string]TokenTestData {
 						"a",
 						&FunctionNode{
 							"*",
-							[]string{"a", "b"},
+							[]FunctionParameter{
+								{
+									"a",
+									&NumberSignature{},
+								},
+								{
+									"b",
+									&NumberSignature{},
+								},
+							},
+							&NumberSignature{},
 							&BlockNode{
 								[]Node{
 									&ReturnNode{
@@ -404,7 +421,17 @@ func GetTokenTestData() map[string]TokenTestData {
 						"a",
 						&FunctionNode{
 							"a",
-							[]string{"a", "b"},
+							[]FunctionParameter{
+								{
+									"a",
+									&NumberSignature{},
+								},
+								{
+									"b",
+									&NumberSignature{},
+								},
+							},
+							&NumberSignature{},
 							&BlockNode{
 								[]Node{
 									&ReturnNode{
@@ -642,15 +669,17 @@ func NodeEquality(t *testing.T, n1 Node, n2 Node) {
 			t.Logf("Function node names match (%s)", n.name)
 		}
 
-		if len(n.params) != len(m.params) {
-			t.Fatalf("Function node parameters count does not match (%d and %d)", len(n.params), len(m.params))
+		if len(n.parameters) != len(m.parameters) {
+			t.Fatalf("Function node parameters count does not match (%d and %d)", len(n.parameters), len(m.parameters))
 		} else {
-			t.Logf("Function node parameters count is equal (%d) ", len(n.params))
+			t.Logf("Function node parameters count is equal (%d) ", len(n.parameters))
 		}
 
-		for i, p := range m.params {
-			if n.params[i] != p {
-				t.Errorf("Function node parameter %d does not match: %s and %s", i, p, m.params)
+		for i, p := range m.parameters {
+			if !n.parameters[i].signature.Matches(p.signature) {
+				t.Errorf("Function node parameter signature %d does not match: %s and %s", i, p.signature, n.parameters[i].signature)
+			} else if n.parameters[i].name != p.name {
+				t.Errorf("Function node parameter name %d does not match: %s and %s", i, p.name, n.parameters[i].name)
 			} else {
 				t.Logf("Function node parameter %d matches (%s)", i, p)
 			}
@@ -663,6 +692,101 @@ func NodeEquality(t *testing.T, n1 Node, n2 Node) {
 	default:
 		panic("unimplemented node equality")
 	}
+}
+
+func SerializeTokens(tokens []Token) string {
+	out := strings.Builder{}
+	level := 0
+
+	for _, token := range tokens {
+		switch token.Type {
+		case TokenPlus:
+			out.WriteString(" + ")
+		case TokenMinus:
+			out.WriteString(" - ")
+		case TokenStar:
+			out.WriteString("*")
+		case TokenSlash:
+			out.WriteString("/")
+		case TokenBang:
+			out.WriteString("!")
+		case TokenSemicolon:
+			out.WriteString(";")
+		case TokenNumber:
+			out.WriteString(token.Lexeme)
+		case TokenString:
+			out.WriteString(fmt.Sprintf("\"%s\"", token.Lexeme))
+		case TokenName:
+			out.WriteString(token.Lexeme)
+		case TokenOpenParenthesis:
+			out.WriteString("(")
+		case TokenCloseParenthesis:
+			out.WriteString(")")
+		case TokenOpenBracket:
+			out.WriteString("[")
+		case TokenCloseBracket:
+			out.WriteString("]")
+		case TokenOpenBrace:
+			out.WriteString("{")
+			level = level + 1
+		case TokenCloseBrace:
+			out.WriteString("}")
+			level = level - 1
+		case TokenTrue:
+			out.WriteString("true")
+		case TokenFalse:
+			out.WriteString("false")
+		case TokenNil:
+			out.WriteString("nil")
+		case TokenFunc:
+			out.WriteString("func")
+		case TokenReturn:
+			out.WriteString("return ")
+		case TokenWhile:
+			out.WriteString("while ")
+		case TokenVar:
+			out.WriteString("var ")
+		case TokenIf:
+			out.WriteString("if ")
+		case TokenElse:
+			out.WriteString(" else ")
+		case TokenImport:
+			out.WriteString("import ")
+		case TokenComma:
+			out.WriteString(", ")
+		case TokenDot:
+			out.WriteString(".")
+		case TokenColon:
+			out.WriteString(": ")
+		case TokenAssign:
+			out.WriteString(" = ")
+		case TokenDeclare:
+			out.WriteString(" := ")
+		case TokenBangEquals:
+			out.WriteString(" != ")
+		case TokenEquals:
+			out.WriteString(" == ")
+		case TokenGreaterThan:
+			out.WriteString(" > ")
+		case TokenLessThan:
+			out.WriteString(" < ")
+		case TokenGreaterThanOrEqual:
+			out.WriteString(" >= ")
+		case TokenLessThanOrEqual:
+			out.WriteString(" <= ")
+		case TokenDoubleAmpersand:
+			out.WriteString(" && ")
+		case TokenDoublePipe:
+			out.WriteString(" || ")
+		case TokenBreakpoint:
+			out.WriteString("breakpoint")
+		case TokenEOF:
+			out.WriteString(fmt.Sprintf("<error: \"%s\">", token.Lexeme))
+		case TokenError:
+		}
+	}
+
+	return out.String()
 }
 
 func TestParser_Parse(t *testing.T) {
@@ -682,7 +806,7 @@ func TestParser_Parse(t *testing.T) {
 			tree, err := p.Parse()
 
 			if err != nil {
-				t.Fatalf("Unexpected error(s): %s", err.(*ParsingError).Format([]rune{}))
+				t.Fatalf("Unexpected error(s): %s", err.(*ParsingError).Format([]rune(SerializeTokens(data.tokens))))
 			}
 
 			t.Logf("Checking parsed tree")

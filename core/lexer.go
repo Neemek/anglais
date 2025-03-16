@@ -53,6 +53,7 @@ const (
 
 	TokenComma
 	TokenDot
+	TokenColon
 
 	TokenAssign
 	TokenDeclare
@@ -153,6 +154,8 @@ func (t TokenType) String() string {
 		return "close bracket"
 	case TokenImport:
 		return "import"
+	case TokenColon:
+		return "colon"
 	}
 
 	return "UNDEFINED TOKENTYPE STRING CONVERSION"
@@ -234,11 +237,11 @@ func (l *Lexer) NextToken() (Token, error) {
 	case '.':
 		return l.makeToken(TokenDot), nil
 	case ':':
-		if !l.accept('=') {
-			return l.makeToken(TokenError), errors.New("malformed token (got ':', expected '=' to follow)")
+		if l.accept('=') {
+			return l.makeToken(TokenDeclare), nil
 		}
 
-		return l.makeToken(TokenDeclare), nil
+		return l.makeToken(TokenColon), nil
 	case '!':
 		if l.accept('=') {
 			return l.makeToken(TokenBangEquals), nil

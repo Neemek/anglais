@@ -203,12 +203,15 @@ func (v *ObjectValue) Equals(other Value) bool {
 var ObjectPrototype = map[string]Value{
 	"set": &BuiltinFunctionValue{
 		"set",
-		[]string{"property", "value"},
-		func(vm *VM, _this Value, params map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{&StringSignature{}, &ListSignature{}},
+			&NilSignature{},
+		},
+		func(vm *VM, _this Value, params []Value) (Value, error) {
 			this := _this.(*ObjectValue)
 
-			p := params["property"]
-			v, ok := params["value"].(*StringValue)
+			p := params[1]
+			v, ok := params[0].(*StringValue)
 			if !ok {
 				return nil, errors.New("property is not a string")
 			}
@@ -282,10 +285,13 @@ func (v *StringValue) Equals(other Value) bool {
 var StringPrototype = map[string]*BuiltinFunctionValue{
 	"split": {
 		"split",
-		[]string{"seperator"},
-		func(vm *VM, this Value, m map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{&StringSignature{}},
+			&NilSignature{},
+		},
+		func(vm *VM, this Value, v []Value) (Value, error) {
 			str := this.(*StringValue).String()
-			sep := m["seperator"].(*StringValue).String()
+			sep := v[0].(*StringValue).String()
 
 			var out []string
 			tmp := strings.Builder{}
@@ -361,19 +367,27 @@ func (v *ListValue) Equals(other Value) bool {
 var ListPrototype = map[string]*BuiltinFunctionValue{
 	"append": {
 		"append",
-		[]string{"item"},
-		func(_ *VM, this Value, p map[string]Value) (Value, error) {
-			this.(*ListValue).items = append(this.(*ListValue).items, p["item"])
+		&FunctionSignature{
+			[]TypeSignature{&AnySignature{}},
+			&NilSignature{},
+		},
+		func(_ *VM, this Value, v []Value) (Value, error) {
+			this.(*ListValue).items = append(this.(*ListValue).items, v[0])
 			return &NilValue{}, nil
 		},
 		nil,
 	},
 	"at": {
 		"at",
-		[]string{"index"},
-		func(_ *VM, this Value, p map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{
+				&NumberSignature{},
+			},
+			&AnySignature{},
+		},
+		func(_ *VM, this Value, p []Value) (Value, error) {
 			items := this.(*ListValue).items
-			index := int(p["index"].(*NumberValue).float64)
+			index := int(p[0].(*NumberValue).float64)
 
 			if index >= len(items) {
 				return nil, errors.New(fmt.Sprintf("list index %x out of range", index))
@@ -385,19 +399,32 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 	},
 	"length": {
 		"length",
-		[]string{},
-		func(_ *VM, this Value, p map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{},
+			&NumberSignature{},
+		},
+		func(_ *VM, this Value, _ []Value) (Value, error) {
 			return GoToValue(len(this.(*ListValue).items)), nil
 		},
 		nil,
 	},
 	"map": {
 		"map",
-		[]string{"f"},
-		func(vm *VM, value Value, m map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{
+				&FunctionSignature{
+					[]TypeSignature{
+						&AnySignature{},
+					},
+					&AnySignature{},
+				},
+			},
+			&ListSignature{},
+		},
+		func(vm *VM, value Value, m []Value) (Value, error) {
 			list := value.(*ListValue)
 
-			v := m["f"]
+			v := m[0]
 			var f Value
 			f, ok := v.(*FunctionValue)
 			if !ok {
@@ -425,11 +452,23 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 	},
 	"reduce": {
 		"reduce",
-		[]string{"f", "start"},
-		func(vm *VM, value Value, m map[string]Value) (Value, error) {
+		&FunctionSignature{
+			[]TypeSignature{
+				&FunctionSignature{
+					[]TypeSignature{
+						&AnySignature{},
+						&AnySignature{},
+					},
+					&AnySignature{},
+				},
+				&AnySignature{},
+			},
+			&AnySignature{},
+		},
+		func(vm *VM, value Value, m []Value) (Value, error) {
 			list := value.(*ListValue)
-			f := m["f"]
-			sum := m["start"]
+			f := m[0]
+			sum := m[1]
 
 			for _, v := range list.items {
 				result, err := vm.Call(f, []Value{sum, v})
@@ -455,7 +494,7 @@ func (v *ListValue) Get(key string) (Value, error) {
 
 type FunctionValue struct {
 	Name   string
-	Params []string
+	Params []FunctionParameter
 	Chunk  *Chunk
 	Parent Value
 }
@@ -483,10 +522,10 @@ func (v *FunctionValue) Get(_ string) (Value, error) {
 }
 
 type BuiltinFunctionValue struct {
-	Name       string
-	Parameters []string
-	F          func(*VM, Value, map[string]Value) (Value, error)
-	Parent     Value
+	Name      string
+	Signature *FunctionSignature
+	F         func(*VM, Value, []Value) (Value, error)
+	Parent    Value
 }
 
 func (v *BuiltinFunctionValue) Type() ValueType {

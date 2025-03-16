@@ -330,9 +330,15 @@ func (n CallNode) String() string {
 
 // FunctionNode definition of function
 type FunctionNode struct {
-	name   string
-	params []string
-	logic  Node
+	name       string
+	parameters []FunctionParameter
+	yield      TypeSignature
+	logic      Node
+}
+
+type FunctionParameter struct {
+	name      string
+	signature TypeSignature
 }
 
 func (n FunctionNode) Type() NodeType {

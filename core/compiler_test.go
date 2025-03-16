@@ -231,7 +231,17 @@ func GetCompileTestData() map[string]CompileTestData {
 					"sum",
 					&FunctionNode{
 						"sum",
-						[]string{"a", "b"},
+						[]FunctionParameter{
+							{
+								"a",
+								&NumberSignature{},
+							},
+							{
+								"b",
+								&NumberSignature{},
+							},
+						},
+						&NumberSignature{},
 						&BlockNode{
 							[]Node{
 								&ReturnNode{
@@ -254,7 +264,16 @@ func GetCompileTestData() map[string]CompileTestData {
 
 					&FunctionValue{
 						"sum",
-						[]string{"a", "b"},
+						[]FunctionParameter{
+							{
+								"a",
+								&NumberSignature{},
+							},
+							{
+								"b",
+								&NumberSignature{},
+							},
+						},
 						NewChunk(
 							[]Bytecode{
 								InstructionDescend,
@@ -281,7 +300,8 @@ func GetCompileTestData() map[string]CompileTestData {
 						"a",
 						&FunctionNode{
 							"a",
-							[]string{},
+							[]FunctionParameter{},
+							&NilSignature{},
 							&BlockNode{
 								[]Node{
 									&AssignNode{
@@ -311,7 +331,7 @@ func GetCompileTestData() map[string]CompileTestData {
 					"a",
 					&FunctionValue{
 						"a",
-						[]string{},
+						[]FunctionParameter{},
 						NewChunk(
 							[]Bytecode{
 								InstructionDescend,
