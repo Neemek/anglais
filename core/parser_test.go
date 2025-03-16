@@ -667,9 +667,9 @@ func NodeEquality(t *testing.T, n1 Node, n2 Node) {
 
 func TestParser_Parse(t *testing.T) {
 	t.Logf("Getting test data")
-	token_data := GetTokenTestData()
+	tokenData := GetTokenTestData()
 
-	for name, data := range token_data {
+	for name, data := range tokenData {
 		if name != "empty_block" && name != "lambda" {
 			continue
 		}
@@ -692,9 +692,9 @@ func TestParser_Parse(t *testing.T) {
 }
 
 func BenchmarkParser_Parse(b *testing.B) {
-	token_data := GetTokenTestData()
+	tokenData := GetTokenTestData()
 
-	for name, data := range token_data {
+	for name, data := range tokenData {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				p := NewParser(data.tokens)

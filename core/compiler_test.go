@@ -117,7 +117,7 @@ func GetCompileTestData() map[string]CompileTestData {
 				},
 			},
 		},
-		"conditional_welse_false": {
+		"conditional_else_false": {
 			&BlockNode{
 				[]Node{
 					&AssignNode{
@@ -164,7 +164,7 @@ func GetCompileTestData() map[string]CompileTestData {
 				},
 			},
 		},
-		"conditional_welse_true": {
+		"conditional_else_true": {
 			&BlockNode{
 				[]Node{
 					&AssignNode{
@@ -363,7 +363,10 @@ func TestCompile(t *testing.T) {
 			c := NewCompiler()
 
 			t.Log("Compiling node tree")
-			c.Compile(testCase.tree)
+			err := c.Compile(testCase.tree)
+			if err != nil {
+				t.Fatalf("Compiling failed: %v", err)
+			}
 
 			t.Log("Initializing vm")
 			vm := NewVM(c.Chunk, 256, 256)
@@ -387,7 +390,7 @@ func BenchmarkCompile(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				c := NewCompiler()
-				c.Compile(testCase.tree)
+				_ = c.Compile(testCase.tree)
 			}
 		})
 	}
@@ -426,16 +429,15 @@ func TestCompiler_CleanStack(t *testing.T) {
 			}
 
 		// clean statements
-		case BlockNodeType:
-		case ConditionalNodeType:
-		case LoopNodeType:
-		case AssignNodeType:
-		case FunctionNodeType:
+		default:
 		}
 
 		t.Run(name, func(t *testing.T) {
 			c := NewCompiler()
-			c.Compile(tc.tree)
+			err := c.Compile(tc.tree)
+			if err != nil {
+				t.Fatalf("Compiling failed: %v", err)
+			}
 
 			vm := NewVM(c.Chunk, 256, 256)
 			for vm.Next() {

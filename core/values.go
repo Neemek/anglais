@@ -154,7 +154,7 @@ func (v *BoolValue) Equals(other Value) bool {
 	return other.Type() == BoolValueType && other.(*BoolValue).bool == v.bool
 }
 
-func (v *BoolValue) Get(key string) (Value, error) {
+func (v *BoolValue) Get(_ string) (Value, error) {
 	return nil, errors.New("booleans have no properties")
 }
 
@@ -254,7 +254,7 @@ func (v *NumberValue) Equals(other Value) bool {
 	return other.Type() == NumberValueType && other.(*NumberValue).float64 == v.float64
 }
 
-func (v *NumberValue) Get(key string) (Value, error) {
+func (v *NumberValue) Get(_ string) (Value, error) {
 	// TODO maybe add standard functions for number values?
 	return nil, errors.New("numbers have no properties")
 }
@@ -489,7 +489,7 @@ type BuiltinFunctionValue struct {
 	Parent     Value
 }
 
-func (v BuiltinFunctionValue) Type() ValueType {
+func (v *BuiltinFunctionValue) Type() ValueType {
 	return BuiltinFunctionValueType
 }
 

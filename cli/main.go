@@ -116,7 +116,10 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		if ctx.Debug {
 			log.Println("Compiling parse tree")
 		}
-		c.Compile(tree)
+		err = c.Compile(tree)
+		if err != nil {
+			return err
+		}
 
 		chunk = c.Chunk
 	} else {
@@ -219,7 +222,10 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 		log.Println("Compiling parse tree")
 	}
 
-	c.Compile(tree)
+	err = c.Compile(tree)
+	if err != nil {
+		return err
+	}
 
 	if ctx.Debug {
 		log.Println("Registering GOB types")

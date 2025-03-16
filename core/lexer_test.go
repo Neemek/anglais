@@ -182,14 +182,14 @@ func TestNewLexer(t *testing.T) {
 
 // lexer NextToken provides an error when it comes across an invalid token
 func TestLexer_NextTokenErrors(t *testing.T) {
-	invalid_codes := []string{
+	invalidCodes := []string{
 		// Invalid tokens
 		"^", "@", "$&", "¨",
 		// Non-ending string (in same line)
 		"\"", "Hini minit \"mini moe", "\"this is some test\ncontent\"", "\n\"Hello world",
 	}
 
-	for _, code := range invalid_codes {
+	for _, code := range invalidCodes {
 		lex := NewLexer(code)
 		tok, err := lex.NextToken()
 

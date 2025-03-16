@@ -92,7 +92,10 @@ func (c *Compiler) Compile(tree Node) error {
 			c.addConstant(v)
 		} else {
 			for _, n := range l.items {
-				c.Compile(n)
+				err := c.Compile(n)
+				if err != nil {
+					return err
+				}
 			}
 			c.add(InstructionFormList)
 			c.addU16(uint16(len(l.items)))
@@ -102,7 +105,10 @@ func (c *Compiler) Compile(tree Node) error {
 		c.getVar(tree.(*ReferenceNode).name)
 
 	case BinaryNodeType:
-		c.compileBinary(tree.(*BinaryNode))
+		err := c.compileBinary(tree.(*BinaryNode))
+		if err != nil {
+			return err
+		}
 
 	case BooleanNodeType:
 		if tree.(*BooleanNode).value {
@@ -117,7 +123,10 @@ func (c *Compiler) Compile(tree Node) error {
 	case BlockNodeType:
 		c.descend()
 		for _, n := range tree.(*BlockNode).statements {
-			c.Compile(n)
+			err := c.Compile(n)
+			if err != nil {
+				return err
+			}
 		}
 		c.ascend()
 
@@ -125,7 +134,10 @@ func (c *Compiler) Compile(tree Node) error {
 		n := tree.(*ConditionalNode)
 
 		// the stack should have whether the condition was truthful
-		c.Compile(n.condition)
+		err := c.Compile(n.condition)
+		if err != nil {
+			return err
+		}
 
 		// if the condition equated to true, we should jump over the body
 		c.add(InstructionJumpFalse)
@@ -135,7 +147,10 @@ func (c *Compiler) Compile(tree Node) error {
 		c.advance(2)
 
 		// this part would be executed if the value was true
-		c.Compile(n.do)
+		err = c.Compile(n.do)
+		if err != nil {
+			return err
+		}
 
 		// we store the position of the jump over the else code here
 		var jumpOverElse Pos
@@ -150,7 +165,10 @@ func (c *Compiler) Compile(tree Node) error {
 		c.putU16(jumpByPos, uint16(c.ip-jumpByPos-2))
 
 		if n.otherwise != nil {
-			c.Compile(n.otherwise)
+			err := c.Compile(n.otherwise)
+			if err != nil {
+				return err
+			}
 			c.putU16(jumpOverElse, uint16(c.ip-jumpOverElse-2))
 		}
 
@@ -158,13 +176,19 @@ func (c *Compiler) Compile(tree Node) error {
 		n := tree.(*LoopNode)
 
 		conditionPos := c.ip
-		c.Compile(n.condition)
+		err := c.Compile(n.condition)
+		if err != nil {
+			return err
+		}
 
 		c.add(InstructionJumpFalse)
 		jumpValuePos := c.ip
 		c.advance(2)
 
-		c.Compile(n.do)
+		err = c.Compile(n.do)
+		if err != nil {
+			return err
+		}
 
 		c.add(InstructionLoop)
 		// condition pos < ip
@@ -177,20 +201,32 @@ func (c *Compiler) Compile(tree Node) error {
 
 		if n.name == "_" {
 			// allow non-ish statements
-			c.Compile(n.value)
+			err := c.Compile(n.value)
+			if err != nil {
+				return err
+			}
 			c.add(InstructionPop)
 		} else {
-			c.setVar(n.name, n.value, n.declare)
+			err := c.setVar(n.name, n.value, n.declare)
+			if err != nil {
+				return err
+			}
 		}
 
 	case CallNodeType:
 		n := tree.(*CallNode)
 
 		for _, arg := range n.args {
-			c.Compile(arg)
+			err := c.Compile(arg)
+			if err != nil {
+				return err
+			}
 		}
 
-		c.Compile(n.source)
+		err := c.Compile(n.source)
+		if err != nil {
+			return err
+		}
 
 		c.add(InstructionCall)
 

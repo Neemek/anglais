@@ -17,7 +17,7 @@ func (p *ParsingError) Error() string {
 	return p.Description
 }
 
-// Print a rich and informative error
+// Format Print a rich and informative error
 func (p *ParsingError) Format(src []rune) string {
 	builder := strings.Builder{}
 

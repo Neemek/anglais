@@ -52,7 +52,7 @@ func jsErrorOfString(err string) interface{} {
 	return errorObject
 }
 
-func run(this js.Value, args []js.Value) interface{} {
+func run(_ js.Value, args []js.Value) interface{} {
 	source := args[0].String()
 	outputHandler := args[1]
 	resolver := args[2]
@@ -89,9 +89,12 @@ func run(this js.Value, args []js.Value) interface{} {
 		}
 	}()
 
-	compiler.Compile(tree)
+	err = compiler.Compile(tree)
+	if err != nil {
+		return nil
+	}
 
-	log.Printf("Compiled tree (into %i instructions)", len(compiler.Chunk.Bytecode))
+	log.Printf("Compiled tree (into %v instructions)", len(compiler.Chunk.Bytecode))
 
 	vm := core.NewVM(compiler.Chunk, 256, 256)
 

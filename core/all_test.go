@@ -78,7 +78,10 @@ func TestAll(t *testing.T) {
 			c := NewCompiler()
 
 			t.Log("Compiling parse tree")
-			c.Compile(tree)
+			err = c.Compile(tree)
+			if err != nil {
+				t.Fatalf("Compiler had an error: %s", err)
+			}
 
 			printChunk(t, name, c.Chunk)
 
@@ -108,7 +111,7 @@ func BenchmarkAll(b *testing.B) {
 				tree, _ := p.Parse()
 
 				c := NewCompiler()
-				c.Compile(tree)
+				_ = c.Compile(tree)
 
 				vm := NewVM(c.Chunk, 256, 256)
 

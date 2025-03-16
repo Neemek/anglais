@@ -237,7 +237,7 @@ func (n NilNode) String() string {
 	return "nil"
 }
 
-// block node with statements
+// BlockNode block node with statements
 type BlockNode struct {
 	statements []Node
 }
@@ -284,7 +284,7 @@ func (n ConditionalNode) String() string {
 	return fmt.Sprintf("if %s then %s otheriwise %s", n.condition.String(), n.do.String(), n.otherwise.String())
 }
 
-// Loops (for/while)
+// LoopNode Loops (for/while)
 type LoopNode struct {
 	condition Node
 	do        Node
@@ -298,7 +298,7 @@ func (n LoopNode) String() string {
 	return fmt.Sprintf("while %s loop %s", n.condition.String(), n.do.String())
 }
 
-// assignment
+// AssignNode assignment
 type AssignNode struct {
 	name    string
 	value   Node
@@ -313,7 +313,7 @@ func (n AssignNode) String() string {
 	return fmt.Sprintf("set %s to %s", n.name, n.value)
 }
 
-// function call
+// CallNode function call
 type CallNode struct {
 	source Node
 	args   []Node
@@ -328,7 +328,7 @@ func (n CallNode) String() string {
 	return fmt.Sprintf("call %s with args (%s)", n.source.String(), n.args)
 }
 
-// definition of function
+// FunctionNode definition of function
 type FunctionNode struct {
 	name   string
 	params []string

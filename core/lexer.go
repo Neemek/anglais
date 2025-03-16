@@ -193,7 +193,7 @@ func (l *Lexer) NextToken() (Token, error) {
 
 	l.start = l.current
 
-	var c = []rune(l.src)[l.current]
+	var c = l.src[l.current]
 	l.advance()
 
 	switch c {
