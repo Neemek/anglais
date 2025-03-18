@@ -100,8 +100,11 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	// overwrite output
 	vm.SetGlobal("write", &core.BuiltinFunctionValue{
-		Name:       "write",
-		Parameters: []string{"value"},
+		Name: "write",
+		Signature: &core.FunctionSignature{
+			[]core.TypeSignature{&core.StringSignature{}},
+			&core.NilSignature{},
+		},
 		F: func(vm *core.VM, this core.Value, v map[string]core.Value) (core.Value, error) {
 			log.Printf("Writing value: %s", v["value"].String())
 			outputHandler.Invoke(js.ValueOf(v["value"].String() + "\n"))

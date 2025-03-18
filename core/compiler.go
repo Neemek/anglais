@@ -314,8 +314,8 @@ func (c *Compiler) Compile(tree Node) error {
 			}
 
 			// check that arg type is as required
-			if !f.in[i].Matches(sig) {
-				return c.error(fmt.Sprintf("argument #%d does not have expected type signature: got %s, requires %s", i, sig, f.in[i]), arg)
+			if !f.In[i].Matches(sig) {
+				return c.error(fmt.Sprintf("argument #%d does not have expected type signature: got %s, requires %s", i, sig, f.In[i]), arg)
 			}
 
 			err = c.Compile(arg)
@@ -596,7 +596,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 				return SignatureOf(v), nil
 			}
 
-			return sig.(*ObjectSignature).members[n.property], nil
+			return sig.(*ObjectSignature).Members[n.property], nil
 
 		default:
 			return nil, c.error(fmt.Sprintf("cannot access property from value of type %s", sig), n)
@@ -615,8 +615,8 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 
 		f := sig.(*FunctionSignature)
 
-		if len(n.args) != len(f.in) {
-			return nil, c.error(fmt.Sprintf("bad argument count (expected %v, got %v)", len(f.in), len(n.args)), n)
+		if len(n.args) != len(f.In) {
+			return nil, c.error(fmt.Sprintf("bad argument count (expected %v, got %v)", len(f.In), len(n.args)), n)
 		}
 
 		// type check arguments
@@ -626,12 +626,12 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 				return nil, err
 			}
 
-			if !sig.Matches(f.in[i]) {
-				return nil, c.error(fmt.Sprintf("argument #%d has wrong type signature. requires %s, got %s", i, f.in[i], sig), arg)
+			if !sig.Matches(f.In[i]) {
+				return nil, c.error(fmt.Sprintf("argument #%d has wrong type signature. requires %s, got %s", i, f.In[i], sig), arg)
 			}
 		}
 
-		return f.out, nil
+		return f.Out, nil
 
 	case FunctionNodeType:
 		n := tree.(*FunctionNode)

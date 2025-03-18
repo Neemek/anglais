@@ -148,7 +148,7 @@ func (*BooleanSignature) String() string {
 }
 
 type ListSignature struct {
-	contents TypeSignature
+	Contents TypeSignature
 }
 
 func (*ListSignature) Type() Type {
@@ -160,15 +160,15 @@ func (s *ListSignature) Matches(other TypeSignature) bool {
 		return other.Matches(s)
 	}
 
-	return other.Type() == TypeAny || (other.Type() == TypeList && other.(*ListSignature).contents.Matches(s.contents))
+	return other.Type() == TypeAny || (other.Type() == TypeList && other.(*ListSignature).Contents.Matches(s.Contents))
 }
 
 func (s *ListSignature) String() string {
-	return fmt.Sprintf("list[%s]", s.contents)
+	return fmt.Sprintf("list[%s]", s.Contents)
 }
 
 type ObjectSignature struct {
-	members map[string]TypeSignature
+	Members map[string]TypeSignature
 }
 
 func (*ObjectSignature) Type() Type {
@@ -190,12 +190,12 @@ func (s *ObjectSignature) Matches(other TypeSignature) bool {
 
 	o := other.(*ObjectSignature)
 
-	if len(o.members) != len(s.members) {
+	if len(o.Members) != len(s.Members) {
 		return false
 	}
 
-	for name, member := range s.members {
-		v, ok := o.members[name]
+	for name, member := range s.Members {
+		v, ok := o.Members[name]
 
 		if !ok {
 			return false
@@ -214,8 +214,8 @@ func (s *ObjectSignature) String() string {
 }
 
 type FunctionSignature struct {
-	in  []TypeSignature
-	out TypeSignature
+	In  []TypeSignature
+	Out TypeSignature
 }
 
 func (*FunctionSignature) Type() Type {
@@ -237,16 +237,16 @@ func (s *FunctionSignature) Matches(other TypeSignature) bool {
 
 	f := other.(*FunctionSignature)
 
-	if !s.out.Matches(f.out) {
+	if !s.Out.Matches(f.Out) {
 		return false
 	}
 
-	if len(f.in) != len(s.in) {
+	if len(f.In) != len(s.In) {
 		return false
 	}
 
-	for i, p := range s.in {
-		v := f.in[i]
+	for i, p := range s.In {
+		v := f.In[i]
 		if !p.Matches(v) {
 			return false
 		}
@@ -260,7 +260,7 @@ func (s *FunctionSignature) String() string {
 
 	b.WriteString("func(")
 
-	for i, t := range s.in {
+	for i, t := range s.In {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -268,7 +268,7 @@ func (s *FunctionSignature) String() string {
 	}
 
 	b.WriteString(") ")
-	b.WriteString(s.out.String())
+	b.WriteString(s.Out.String())
 
 	return b.String()
 }

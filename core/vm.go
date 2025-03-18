@@ -594,9 +594,9 @@ func (vm *VM) Next() bool {
 			vm.chunk = f.Chunk
 			vm.ip = 0
 		case *BuiltinFunctionValue:
-			args := make([]Value, len(f.Signature.in))
+			args := make([]Value, len(f.Signature.In))
 
-			for i := len(f.Signature.in) - 1; i >= 0; i-- {
+			for i := len(f.Signature.In) - 1; i >= 0; i-- {
 				args[i] = vm.stack.Pop()
 			}
 
