@@ -68,14 +68,19 @@ func GetTokenTestData() map[string]TokenTestData {
 							BinaryAddition,
 							&NumberNode{
 								1,
+								0, 0,
 							},
 							&NumberNode{
 								2,
+								0, 0,
 							},
+							0, 0,
 						},
 						false,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"assignment": {
@@ -92,10 +97,13 @@ func GetTokenTestData() map[string]TokenTestData {
 						&StringNode{
 							"Hello world!",
 							"\"Hello world!\"",
+							0, 0,
 						},
 						false,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"declaration": {
@@ -115,14 +123,19 @@ func GetTokenTestData() map[string]TokenTestData {
 							BinaryAddition,
 							&NumberNode{
 								1,
+								0, 0,
 							},
 							&ReferenceNode{
 								"b",
+								0, 0,
 							},
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		// (2 + 1) * 5 + 3 / (6 - 2) - 10 / 2
@@ -169,30 +182,63 @@ func GetTokenTestData() map[string]TokenTestData {
 									BinaryMultiplication,
 									&BinaryNode{
 										BinaryAddition,
-										&NumberNode{2},
-										&NumberNode{1},
+										&NumberNode{
+											2,
+											0, 0,
+										},
+										&NumberNode{
+											1,
+											0, 0,
+										},
+										0, 0,
 									},
-									&NumberNode{5},
+									&NumberNode{
+										5,
+										0, 0,
+									},
+									0, 0,
 								},
 								&BinaryNode{
 									BinaryDivision,
-									&NumberNode{3},
+									&NumberNode{
+										3,
+										0, 0,
+									},
 									&BinaryNode{
 										BinarySubtraction,
-										&NumberNode{6},
-										&NumberNode{2},
+										&NumberNode{
+											6,
+											0, 0,
+										},
+										&NumberNode{
+											2,
+											0, 0,
+										},
+										0, 0,
 									},
+									0, 0,
 								},
+								0, 0,
 							},
 							&BinaryNode{
 								BinaryDivision,
-								&NumberNode{10},
-								&NumberNode{2},
+								&NumberNode{
+									10,
+									0, 0,
+								},
+								&NumberNode{
+									2,
+									0, 0,
+								},
+								0, 0,
 							},
+							0, 0,
 						},
 						false,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"condition_equal": {
@@ -212,14 +258,19 @@ func GetTokenTestData() map[string]TokenTestData {
 							BinaryEquality,
 							&NumberNode{
 								20,
+								0, 0,
 							},
 							&NumberNode{
 								15,
+								0, 0,
 							},
+							0, 0,
 						},
 						false,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"if_statement": {
@@ -242,10 +293,13 @@ func GetTokenTestData() map[string]TokenTestData {
 							BinaryEquality,
 							&ReferenceNode{
 								"a",
+								0, 0,
 							},
 							&NumberNode{
 								0,
+								0, 0,
 							},
+							0, 0,
 						},
 						do: &BlockNode{
 							[]Node{
@@ -253,13 +307,17 @@ func GetTokenTestData() map[string]TokenTestData {
 									"b",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 					},
 				},
+				0, 0,
 			},
 		},
 		"if_else_statement": {
@@ -288,10 +346,13 @@ func GetTokenTestData() map[string]TokenTestData {
 							BinaryEquality,
 							&ReferenceNode{
 								"a",
+								0, 0,
 							},
 							&NumberNode{
 								0,
+								0, 0,
 							},
+							0, 0,
 						},
 						do: &BlockNode{
 							[]Node{
@@ -299,10 +360,13 @@ func GetTokenTestData() map[string]TokenTestData {
 									"b",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						otherwise: &BlockNode{
 							[]Node{
@@ -310,13 +374,17 @@ func GetTokenTestData() map[string]TokenTestData {
 									"b",
 									&NumberNode{
 										0,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 					},
 				},
+				0, 0,
 			},
 		},
 		"empty_block": {
@@ -329,8 +397,10 @@ func GetTokenTestData() map[string]TokenTestData {
 				[]Node{
 					&BlockNode{
 						[]Node{},
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"lambda": { // a := func(a, b) { return a + b }
@@ -382,18 +452,26 @@ func GetTokenTestData() map[string]TokenTestData {
 											BinaryAddition,
 											&ReferenceNode{
 												"a",
+												0, 0,
 											},
 											&ReferenceNode{
 												"b",
+												0, 0,
 											},
+											0, 0,
 										},
+										0, 0,
 									},
 								},
+								0, 0,
 							},
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"function_declaration": {
@@ -439,18 +517,26 @@ func GetTokenTestData() map[string]TokenTestData {
 											BinaryAddition,
 											&ReferenceNode{
 												"a",
+												0, 0,
 											},
 											&ReferenceNode{
 												"b",
+												0, 0,
 											},
+											0, 0,
 										},
+										0, 0,
 									},
 								},
+								0, 0,
 							},
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"prop_getting": {
@@ -470,12 +556,16 @@ func GetTokenTestData() map[string]TokenTestData {
 						&AccessNode{
 							&ReferenceNode{
 								"a",
+								0, 0,
 							},
 							"b",
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 		"list_init": {
@@ -515,27 +605,41 @@ func GetTokenTestData() map[string]TokenTestData {
 							[]Node{
 								&ReferenceNode{
 									"a",
+									0, 0,
 								},
 								&NumberNode{
 									3.141,
+									0, 0,
 								},
 								&StringNode{
 									"Hello world!",
 									"\"Hello world!\"",
+									0, 0,
 								},
 								&BooleanNode{
 									true,
+									0, 0,
 								},
 								&ListNode{
 									[]Node{
-										&NumberNode{2}, &NumberNode{3},
+										&NumberNode{
+											2,
+											0, 0,
+										}, &NumberNode{
+											3,
+											0, 0,
+										},
 									},
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 		},
 	}
@@ -676,10 +780,10 @@ func NodeEquality(t *testing.T, n1 Node, n2 Node) {
 		}
 
 		for i, p := range m.parameters {
-			if !n.parameters[i].signature.Matches(p.signature) {
-				t.Errorf("Function node parameter signature %d does not match: %s and %s", i, p.signature, n.parameters[i].signature)
-			} else if n.parameters[i].name != p.name {
-				t.Errorf("Function node parameter name %d does not match: %s and %s", i, p.name, n.parameters[i].name)
+			if !n.parameters[i].Signature.Matches(p.Signature) {
+				t.Errorf("Function node parameter signature %d does not match: %s and %s", i, p.Signature, n.parameters[i].Signature)
+			} else if n.parameters[i].Name != p.Name {
+				t.Errorf("Function node parameter name %d does not match: %s and %s", i, p.Name, n.parameters[i].Name)
 			} else {
 				t.Logf("Function node parameter %d matches (%s)", i, p)
 			}
@@ -782,6 +886,10 @@ func SerializeTokens(tokens []Token) string {
 			out.WriteString("breakpoint")
 		case TokenEOF:
 			out.WriteString(fmt.Sprintf("<error: \"%s\">", token.Lexeme))
+		case TokenHexadecimal:
+			out.WriteString(token.Lexeme)
+		case TokenPipe:
+			out.WriteString(" | ")
 		case TokenError:
 		}
 	}

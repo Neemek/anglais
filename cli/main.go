@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/alecthomas/kong"
 	"log"
 	"neemek.com/anglais/core"
@@ -93,6 +94,10 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 
 		tree, err := p.Parse()
 
+		if ctx.Debug {
+			log.Printf("Parsed tree, meaning:\n%s", tree)
+		}
+
 		// if there were parsing errors, print them out
 		if err != nil {
 			print(err.(*core.ParsingError).Format([]rune(src)))
@@ -118,7 +123,11 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		}
 		err = c.Compile(tree)
 		if err != nil {
-			return err
+			var e core.CompilerError
+			if errors.As(err, &e) {
+				log.Fatal(e.Format([]rune(src)))
+			}
+			log.Fatal(err)
 		}
 
 		chunk = c.Chunk
@@ -200,7 +209,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	tree, err := p.Parse()
 
 	if err != nil {
-		print(err.(*core.ParsingError).Format([]rune(src)))
+		log.Fatal(err.(*core.ParsingError).Format([]rune(src)))
 	}
 
 	if ctx.Debug {
@@ -224,7 +233,11 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 
 	err = c.Compile(tree)
 	if err != nil {
-		return err
+		var e core.CompilerError
+		if errors.As(err, &e) {
+			log.Fatal(e.Format([]rune(src)))
+		}
+		log.Fatal(err)
 	}
 
 	if ctx.Debug {
@@ -255,8 +268,8 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 var cli struct {
 	Debug bool `short:"D" name:"debug" help:"Enable debug mode."`
 
-	Run        RunCmd     `cmd:"" name:"run" help:"Run program."`
-	CompileCmd CompileCmd `cmd:"" name:"compile" help:"Compile program to bytecode."`
+	Run     RunCmd     `cmd:"" name:"run" help:"Run program."`
+	Compile CompileCmd `cmd:"" name:"compile" help:"Compile program to bytecode."`
 }
 
 func main() {

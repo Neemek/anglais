@@ -18,7 +18,7 @@ while n <= terms {
 tot = tot * 6
 
 # get the absolute value of a number
-func abs(x) {
+func abs(x: number) number {
 	if x < 0 {
 		return -x
 	}
@@ -30,7 +30,7 @@ func abs(x) {
 # see: https://en.wikipedia.org/wiki/Newton's_method
 # The required accuracy
 SQRT_ACC := 0.00000001
-func sqrt(x) {
+func sqrt(x: number) number {
     pg := 0 # previous guess
     g := 1 # current guess
 
@@ -45,4 +45,4 @@ func sqrt(x) {
 tot = sqrt(tot)
 
 # output the result
-write(tot)
+write(str(tot))

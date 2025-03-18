@@ -16,19 +16,19 @@ func CompareValues(t *testing.T, got Value, want Value) {
 		t.Logf("Both are nil")
 		return
 	case BoolValueType:
-		if got.(*BoolValue).bool != want.(*BoolValue).bool {
+		if got.(*BoolValue).Boolean != want.(*BoolValue).Boolean {
 			t.Errorf("bool value mismatch: got %v, want %v", got.(*BoolValue), want.(*BoolValue))
 		} else {
 			t.Logf("Both are same boolean (%s)", want.(*BoolValue).String())
 		}
 	case NumberValueType:
-		if got.(*NumberValue).float64 != want.(*NumberValue).float64 {
+		if got.(*NumberValue).Number != want.(*NumberValue).Number {
 			t.Errorf("number value mismatch: got %v, want %v", got.(*NumberValue), want.(*NumberValue))
 		} else {
 			t.Logf("Both are same number (%s)", got.(*NumberValue).String())
 		}
 	case StringValueType:
-		if got.(*StringValue).string != want.(*StringValue).string {
+		if got.(*StringValue).Text != want.(*StringValue).Text {
 			t.Errorf("string value mismatch: got %v, want %v", got.(*StringValue), want.(*StringValue))
 		} else {
 			t.Logf("Both are same string (%s)", got.(*StringValue).String())

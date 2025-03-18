@@ -38,6 +38,7 @@ func GetCompileTestData() map[string]CompileTestData {
 			&StringNode{
 				"Hello world!",
 				"\"Hello world!\"",
+				0, 0,
 			},
 			[]Value{
 				&StringValue{"Hello world!"},
@@ -50,12 +51,15 @@ func GetCompileTestData() map[string]CompileTestData {
 						"a",
 						&NumberNode{
 							0,
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 					&ConditionalNode{
 						&BooleanNode{
 							false,
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -63,14 +67,19 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						nil,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 			[]Value{
 				&VariableValue{
@@ -87,12 +96,15 @@ func GetCompileTestData() map[string]CompileTestData {
 						"a",
 						&NumberNode{
 							0,
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 					&ConditionalNode{
 						&BooleanNode{
 							true,
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -100,14 +112,19 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						nil,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 			[]Value{
 				&VariableValue{
@@ -124,12 +141,15 @@ func GetCompileTestData() map[string]CompileTestData {
 						"a",
 						&NumberNode{
 							0,
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 					&ConditionalNode{
 						&BooleanNode{
 							false,
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -137,10 +157,13 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -148,13 +171,18 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										2,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 			[]Value{
 				&VariableValue{
@@ -171,12 +199,15 @@ func GetCompileTestData() map[string]CompileTestData {
 						"a",
 						&NumberNode{
 							0,
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 					&ConditionalNode{
 						&BooleanNode{
 							true,
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -184,10 +215,13 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										1,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
 						&BlockNode{
 							[]Node{
@@ -195,13 +229,18 @@ func GetCompileTestData() map[string]CompileTestData {
 									"a",
 									&NumberNode{
 										2,
+										0, 0,
 									},
 									false,
+									0, 0,
 								},
 							},
+							0, 0,
 						},
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 			[]Value{
 				&VariableValue{
@@ -216,10 +255,13 @@ func GetCompileTestData() map[string]CompileTestData {
 				BinaryAddition,
 				&NumberNode{
 					1,
+					0, 0,
 				},
 				&NumberNode{
 					2,
+					0, 0,
 				},
+				0, 0,
 			},
 			[]Value{
 				&NumberValue{3},
@@ -247,16 +289,28 @@ func GetCompileTestData() map[string]CompileTestData {
 								&ReturnNode{
 									&BinaryNode{
 										BinaryAddition,
-										&ReferenceNode{"a"},
-										&ReferenceNode{"b"},
+										&ReferenceNode{
+											"a",
+											0, 0,
+										},
+										&ReferenceNode{
+											"b",
+											0, 0,
+										},
+										0, 0,
 									},
+									0, 0,
 								},
 							},
+							0, 0,
 						},
+						0, 0,
 					},
 					true,
+					0, 0,
 				},
 			},
+			0, 0,
 		},
 			[]Value{
 				&VariableValue{
@@ -306,25 +360,39 @@ func GetCompileTestData() map[string]CompileTestData {
 								[]Node{
 									&AssignNode{
 										"b",
-										&NumberNode{1},
+										&NumberNode{
+											1,
+											0, 0,
+										},
 										true,
+										0, 0,
 									},
 									&ReturnNode{
-										&ReferenceNode{"b"},
+										&ReferenceNode{
+											"b",
+											0, 0,
+										},
+										0, 0,
 									},
 								},
+								0, 0,
 							},
+							0, 0,
 						},
 						true,
+						0, 0,
 					},
 					&CallNode{
 						&ReferenceNode{
 							"a",
+							0, 0,
 						},
 						[]Node{},
 						false,
+						0, 0,
 					},
 				},
+				0, 0,
 			},
 			[]Value{
 				&VariableValue{
@@ -363,7 +431,7 @@ func printChunk(t *testing.T, name string, chunk *Chunk) {
 	t.Logf("=-= constants =-=")
 
 	for i, ct := range chunk.Constants {
-		t.Logf("c=%d \t%s", i, ct)
+		t.Logf("c=%d \t%s", i, ct.DebugString())
 
 		f, ok := ct.(*FunctionValue)
 		if ok {

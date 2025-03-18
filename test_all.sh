@@ -1,22 +1,48 @@
 #!/bin/zsh
 
-echo '== Building CLI =='
-cd cli
-go build .
-cd ..
-
-
-echo '== Testing anglais =='
-
-for file in ./tests/*.ang; do
-  echo "-- Test-running file $file --"
-
-  if ! ./cli/cli run "$file"; then
-    echo "-- Error --"
+echo '=== Building CLI ==='
+(
+  cd cli || exit 1
+  if ! go build .; then
+    echo "=== Had error building CLI ==="
     exit 1
   else
-    echo "-- Success --"
+    echo "=+= Successfully built CLI =+="
+  fi
+)
+
+echo "=== Running go core tests ==="
+(
+  cd core || exit 1
+  if ! go test .; then
+    echo "=x= Core testing failed =x= "
+    exit 1
+  else
+    echo "=+= Successfully ran core tests =+="
+  fi
+)
+
+errors=()
+
+echo '=== Testing anglais ==='
+
+# read files
+for file in $(find tests -type f); do
+  echo "-v- Test-running file $file -v-"
+
+  if ! ./cli/cli run "$file"; then
+    echo "-x- Error -x-"
+    errors+=("$file")
+  else
+    echo "-+- Success -+-"
   fi
 done
 
-echo '== Successfully ran all tests =='
+
+if [ 0 -ne "$(wc -w <<< "${errors[@]}")" ]; then
+  echo "== Errors occured while executing =="
+  echo "erroring files: $(printf '%s ' "${errors[@]}")"
+  exit 1
+else
+  echo '== Successfully ran all tests =='
+fi

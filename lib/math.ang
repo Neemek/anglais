@@ -68,50 +68,6 @@ func round(x: number) number {
     return f
 }
 
-# sin(x)
-# x: number; an angle in radians
-#   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
-#   TODO: use hashmap with precomputed values and linear interpolation
-func sin(x: number) number {
-    f := 1
-    x = mod(x, 2*PI)
-    if x > PI {
-        x = -x
-        f = -1
-    }
-
-    # compute sine with a taylor series mock function of sine (valid between -pi and +pi)
-    tot := x
-    l := 1
-    i := 1
-    s := -1
-
-    while i <= 19 {
-        i = i + 2
-        l = s * l * x / i / (i-1)
-
-        tot = tot + l
-
-        s = -s
-    }
-
-    return tot*f
-}
-
-# cos(x)
-# x: number; an angle in radians
-#   Get the cosine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
-func cos(x: number) number {
-    # todo
-}
-
-# tan(x)
-# x: number; an angle in radians
-#   Get the tangent of an angle. https://en.wikipedia.org/wiki/Tangent
-func tan(x: number) number {
-    # todo
-}
-
 # mod(x, n)
 # x: number; any number
 # n: number; the number to divide by
@@ -132,23 +88,6 @@ func mod(x: number, n: number) {
     }
 
     return x
-}
-
-# ln(x)
-# x: number; any number
-#   Get the approximate value of the natural logarithm
-#   This function uses newton's method to approximate.
-LN_ACC := 0.000000001
-func ln(x: number) number {
-    pg := 0
-    g := 1
-
-    while abs(pg - g) > LN_ACC {
-        pg = g
-        g = pg + x / exp(pg) - 1
-    }
-
-    return g
 }
 
 # sm_exp(x)
@@ -203,4 +142,65 @@ func exp(x: number) number {
 #   Raise any number to any power (x^p)
 func pow(x: number, p: number) number {
     return exp(p*ln(x))
+}
+
+# ln(x)
+# x: number; any number
+#   Get the approximate value of the natural logarithm
+#   This function uses newton's method to approximate.
+LN_ACC := 0.000000001
+func ln(x: number) number {
+    pg := 0
+    g := 1
+
+    while abs(pg - g) > LN_ACC {
+        pg = g
+        g = pg + x / exp(pg) - 1
+    }
+
+    return g
+}
+
+# sin(x)
+# x: number; an angle in radians
+#   Get the sine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
+#   TODO: use hashmap with precomputed values and linear interpolation
+func sin(x: number) number {
+    f := 1
+    x = mod(x, 2*PI)
+    if x > PI {
+        x = PI - x
+        f = -1
+    }
+
+    # compute sine with a taylor series mock function of sine (valid between -pi and +pi)
+    tot := x
+    l := 1
+    i := 1
+    s := -1
+
+    while i <= 19 {
+        i = i + 2
+        l = s * l * x / i / (i-1)
+
+        tot = tot + l
+
+        s = -s
+    }
+
+    return tot*f
+}
+
+# cos(x)
+# x: number; an angle in radians
+#   Get the cosine of an angle (in radians). https://en.wikipedia.org/wiki/Sine_and_cosine
+func cos(x: number) number {
+    # todo
+}
+
+# tan(x)
+# x: number; an angle in radians
+#   Get the tangent of an angle. https://en.wikipedia.org/wiki/Tangent
+func tan(x: number) number {
+    # todo
 }

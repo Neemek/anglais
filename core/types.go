@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Type int
 
@@ -13,48 +16,32 @@ const (
 	TypeObject
 	TypeFunction
 	TypeAny
+	TypeComposite
 )
 
 func (t Type) String() string {
 	switch t {
 	case TypeString:
-		return "String"
+		return "string"
 	case TypeNumber:
-		return "Number"
+		return "number"
 	case TypeBoolean:
-		return "Boolean"
+		return "boolean"
 	case TypeNil:
-		return "Nil"
+		return "nil"
 	case TypeList:
-		return "List"
+		return "list"
 	case TypeObject:
-		return "Object"
+		return "object"
 	case TypeFunction:
-		return "Function"
+		return "func"
+	case TypeAny:
+		return "any"
+	case TypeComposite:
+		return "composite"
 	}
 
 	panic(fmt.Sprintf("unsupported string conversion for type %v", int(t)))
-}
-
-func TypeOf(v Value) Type {
-	switch v.(type) {
-	case *StringValue:
-		return TypeString
-	case *NumberValue:
-		return TypeNumber
-	case *BoolValue:
-		return TypeBoolean
-	case *ListValue:
-		return TypeList
-	case *ObjectValue:
-		return TypeObject
-	case *FunctionValue:
-		return TypeFunction
-	case *BuiltinFunctionValue:
-		return TypeFunction
-	}
-
-	panic(fmt.Sprintf("unsupported value (of type %T)", v))
 }
 
 func SignatureOf(v Value) TypeSignature {
@@ -83,6 +70,9 @@ type TypeSignature interface {
 
 	// Matches check if this type signature matches another.
 	Matches(TypeSignature) bool
+
+	// String create a human-readable string version of the value type.
+	String() string
 }
 
 type NilSignature struct{}
@@ -91,8 +81,16 @@ func (*NilSignature) Type() Type {
 	return TypeNil
 }
 
-func (*NilSignature) Matches(other TypeSignature) bool {
+func (s *NilSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	return other.Type() == TypeAny || other.Type() == TypeNil
+}
+
+func (*NilSignature) String() string {
+	return "nil"
 }
 
 type StringSignature struct{}
@@ -101,8 +99,16 @@ func (*StringSignature) Type() Type {
 	return TypeString
 }
 
-func (*StringSignature) Matches(other TypeSignature) bool {
+func (s *StringSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	return other.Type() == TypeAny || other.Type() == TypeString
+}
+
+func (*StringSignature) String() string {
+	return "string"
 }
 
 type NumberSignature struct{}
@@ -111,8 +117,16 @@ func (*NumberSignature) Type() Type {
 	return TypeNumber
 }
 
-func (*NumberSignature) Matches(other TypeSignature) bool {
+func (s *NumberSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	return other.Type() == TypeAny || other.Type() == TypeNumber
+}
+
+func (*NumberSignature) String() string {
+	return "number"
 }
 
 type BooleanSignature struct{}
@@ -121,8 +135,16 @@ func (*BooleanSignature) Type() Type {
 	return TypeBoolean
 }
 
-func (*BooleanSignature) Matches(other TypeSignature) bool {
+func (s *BooleanSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	return other.Type() == TypeAny || other.Type() == TypeBoolean
+}
+
+func (*BooleanSignature) String() string {
+	return "boolean"
 }
 
 type ListSignature struct {
@@ -134,7 +156,15 @@ func (*ListSignature) Type() Type {
 }
 
 func (s *ListSignature) Matches(other TypeSignature) bool {
-	return other.Type() == TypeAny || other.Type() == TypeList && other.(*ListSignature).contents.Matches(s.contents)
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
+	return other.Type() == TypeAny || (other.Type() == TypeList && other.(*ListSignature).contents.Matches(s.contents))
+}
+
+func (s *ListSignature) String() string {
+	return fmt.Sprintf("list[%s]", s.contents)
 }
 
 type ObjectSignature struct {
@@ -146,6 +176,10 @@ func (*ObjectSignature) Type() Type {
 }
 
 func (s *ObjectSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	if other.Type() == TypeAny {
 		return true
 	}
@@ -175,6 +209,10 @@ func (s *ObjectSignature) Matches(other TypeSignature) bool {
 	return true
 }
 
+func (s *ObjectSignature) String() string {
+	panic("unimplemented")
+}
+
 type FunctionSignature struct {
 	in  []TypeSignature
 	out TypeSignature
@@ -185,6 +223,10 @@ func (*FunctionSignature) Type() Type {
 }
 
 func (s *FunctionSignature) Matches(other TypeSignature) bool {
+	if other.Type() == TypeComposite {
+		return other.Matches(s)
+	}
+
 	if other.Type() == TypeAny {
 		return true
 	}
@@ -213,12 +255,51 @@ func (s *FunctionSignature) Matches(other TypeSignature) bool {
 	return true
 }
 
+func (s *FunctionSignature) String() string {
+	b := strings.Builder{}
+
+	b.WriteString("func(")
+
+	for i, t := range s.in {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(t.String())
+	}
+
+	b.WriteString(") ")
+	b.WriteString(s.out.String())
+
+	return b.String()
+}
+
 type AnySignature struct{}
 
-func (AnySignature) Type() Type {
+func (*AnySignature) Type() Type {
 	return TypeAny
 }
 
-func (AnySignature) Matches(_ TypeSignature) bool {
+func (*AnySignature) Matches(_ TypeSignature) bool {
 	return true
+}
+
+func (*AnySignature) String() string {
+	return "any"
+}
+
+type CompositeSignature struct {
+	A TypeSignature
+	B TypeSignature
+}
+
+func (*CompositeSignature) Type() Type {
+	return TypeComposite
+}
+
+func (s *CompositeSignature) Matches(other TypeSignature) bool {
+	return s.A.Matches(other) || s.B.Matches(other)
+}
+
+func (s *CompositeSignature) String() string {
+	return fmt.Sprintf("%s|%s", s.A, s.B)
 }

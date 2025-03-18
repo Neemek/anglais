@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -26,6 +27,8 @@ const (
 	InstructionMul
 	// InstructionDiv pop two and divide the second by the first
 	InstructionDiv
+	// InstructionNegate negate the value; if it was positive, make it negative, and vice versa.
+	InstructionNegate
 	// InstructionEquals whether the two top values on the stack are equal
 	InstructionEquals
 	// InstructionNotEqual whether the two top values on the stack are not equal
@@ -118,6 +121,8 @@ func (b Bytecode) String() string {
 		return "MUL"
 	case InstructionDiv:
 		return "DIV"
+	case InstructionNegate:
+		return "NEGATE"
 	case InstructionEquals:
 		return "EQUALS"
 	case InstructionNotEqual:
@@ -202,7 +207,7 @@ func (c Chunk) String() string {
 	b.WriteString("=-= constants =-=\n")
 
 	for i, ct := range c.Constants {
-		b.WriteString(fmt.Sprintf("c=%d \t%s\n", i, ct))
+		b.WriteString(fmt.Sprintf("c=%d \t%s\n", i, ct.DebugString()))
 
 		f, ok := ct.(*FunctionValue)
 		if ok {
@@ -228,6 +233,16 @@ func RegisterGOBTypes() {
 		Params: nil,
 		Chunk:  nil,
 	})
+
+	// Signatures
+	gob.Register(&NilSignature{})
+	gob.Register(&NumberSignature{})
+	gob.Register(&StringSignature{})
+	gob.Register(&FunctionSignature{})
+	gob.Register(&ListSignature{})
+	gob.Register(&ObjectSignature{})
+	gob.Register(&BooleanSignature{})
+
 }
 
 func (c Chunk) Serialize() []byte {
@@ -314,14 +329,47 @@ var DefaultGlobals = map[string]Value{
 		&FunctionSignature{
 			[]TypeSignature{
 				&StringSignature{},
-				&StringSignature{},
+				&ListSignature{
+					&AnySignature{},
+				},
 			},
 			&StringSignature{},
 		},
 		func(vm *VM, value Value, m []Value) (Value, error) {
-			valuies := m[1].(*ListValue).items
+			b := strings.Builder{}
+			template := m[0].(*StringValue).Text
+			valuies := m[1].(*ListValue).Items
 
-			return GoToValue(fmt.Sprintf(m[0].String(), valuies)), nil
+			vi := 0
+			last := 0
+			for i := 0; i < len(template); i++ {
+				if template[i] == '%' {
+					b.WriteString(template[last:i])
+					b.WriteString(valuies[vi].String())
+					vi++
+					last = i + 1
+				}
+			}
+
+			b.WriteString(template[last:])
+
+			return GoToValue(b.String()), nil
+		},
+		nil,
+	},
+	"char": &BuiltinFunctionValue{
+		"char",
+		&FunctionSignature{
+			[]TypeSignature{&NumberSignature{}},
+			&StringSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			n := args[0].(*NumberValue).Number
+			b := byte(n)
+
+			return &StringValue{
+				string([]byte{b}),
+			}, nil
 		},
 		nil,
 	},
@@ -363,6 +411,29 @@ var DefaultGlobals = map[string]Value{
 				return nil, errors.New(fmt.Sprintf("assertion failed: %s does not equal %s", a, b))
 			}
 
+			return &NilValue{}, nil
+		},
+		nil,
+	},
+	"str": &BuiltinFunctionValue{
+		"str",
+		&FunctionSignature{
+			[]TypeSignature{&AnySignature{}},
+			&StringSignature{},
+		},
+		func(vm *VM, _ Value, args []Value) (Value, error) {
+			return GoToValue(args[0].String()), nil
+		},
+		nil,
+	},
+	"exit": &BuiltinFunctionValue{
+		"exit",
+		&FunctionSignature{
+			[]TypeSignature{&NumberSignature{}},
+			&NilSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			os.Exit(int(args[0].(*NumberValue).Number))
 			return &NilValue{}, nil
 		},
 		nil,
@@ -417,28 +488,33 @@ func (vm *VM) Next() bool {
 		vm.stack.Push(vm.ReadConstant())
 
 	case InstructionAdd:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&NumberValue{l + r})
 
 	case InstructionSub:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&NumberValue{l - r})
 
 	case InstructionMul:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&NumberValue{l * r})
 
 	case InstructionDiv:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&NumberValue{l / r})
+
+	case InstructionNegate:
+		v := vm.stack.Pop().(*NumberValue).Number
+
+		vm.stack.Push(&NumberValue{-v})
 
 	case InstructionEquals:
 		vm.stack.Push(
@@ -451,40 +527,40 @@ func (vm *VM) Next() bool {
 		)
 
 	case InstructionNot:
-		b := vm.stack.Pop().(*BoolValue).bool
+		b := vm.stack.Pop().(*BoolValue).Boolean
 		vm.stack.Push(&BoolValue{!b})
 
 	case InstructionAnd:
-		r := vm.stack.Pop().(*BoolValue).bool
-		l := vm.stack.Pop().(*BoolValue).bool
+		r := vm.stack.Pop().(*BoolValue).Boolean
+		l := vm.stack.Pop().(*BoolValue).Boolean
 		vm.stack.Push(&BoolValue{l && r})
 
 	case InstructionOr:
-		r := vm.stack.Pop().(*BoolValue).bool
-		l := vm.stack.Pop().(*BoolValue).bool
+		r := vm.stack.Pop().(*BoolValue).Boolean
+		l := vm.stack.Pop().(*BoolValue).Boolean
 		vm.stack.Push(&BoolValue{l || r})
 
 	case InstructionLess:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&BoolValue{l < r})
 
 	case InstructionLessOrEqual:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&BoolValue{l <= r})
 
 	case InstructionGreater:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&BoolValue{l > r})
 
 	case InstructionGreaterOrEqual:
-		r := vm.stack.Pop().(*NumberValue).float64
-		l := vm.stack.Pop().(*NumberValue).float64
+		r := vm.stack.Pop().(*NumberValue).Number
+		l := vm.stack.Pop().(*NumberValue).Number
 
 		vm.stack.Push(&BoolValue{l >= r})
 
@@ -503,7 +579,7 @@ func (vm *VM) Next() bool {
 			for i := len(f.Params) - 1; i >= 0; i-- {
 				p := vm.stack.Current - Pos(len(f.Params)) + Pos(i)
 				vm.stack.items[p] = &VariableValue{
-					f.Params[i].name,
+					f.Params[i].Name,
 					vm.stack.items[p],
 					vm.scope,
 				}
@@ -543,12 +619,12 @@ func (vm *VM) Next() bool {
 
 	case InstructionJumpFalse:
 		n := vm.NextU16()
-		if !vm.stack.Pop().(*BoolValue).bool {
+		if !vm.stack.Pop().(*BoolValue).Boolean {
 			vm.ip += Pos(n)
 		}
 
 	case InstructionGetLocal:
-		name := vm.GetConstant(vm.NextByte()).(*StringValue).string
+		name := vm.GetConstant(vm.NextByte()).(*StringValue).Text
 		v := vm.getVar(name)
 
 		if v == nil {
@@ -560,7 +636,7 @@ func (vm *VM) Next() bool {
 
 	case InstructionSetLocal:
 		value := vm.stack.Pop().(Value)
-		name := vm.GetConstant(vm.NextByte()).(*StringValue).string
+		name := vm.GetConstant(vm.NextByte()).(*StringValue).Text
 
 		v := vm.getVar(name)
 
@@ -568,19 +644,19 @@ func (vm *VM) Next() bool {
 			vm.error(fmt.Sprintf("cannot set local: undefined variable %s", name))
 		}
 
-		v.value = value
+		v.value = value.Clone()
 
 	case InstructionDeclareLocal:
 		vm.addVar(
-			vm.GetConstant(vm.NextByte()).(*StringValue).string,
-			vm.stack.Pop().(Value),
+			vm.GetConstant(vm.NextByte()).(*StringValue).Text,
+			vm.stack.Pop().Clone(),
 		)
 
 	case InstructionGetGlobal:
-		vm.stack.Push(vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).string])
+		vm.stack.Push(vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).Text])
 
 	case InstructionSetGlobal:
-		vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).string] = vm.stack.Pop()
+		vm.globals[vm.GetConstant(vm.NextByte()).(*StringValue).Text] = vm.stack.Pop()
 
 	case InstructionTrue:
 		vm.stack.Push(&BoolValue{true})
@@ -594,10 +670,14 @@ func (vm *VM) Next() bool {
 	case InstructionFormList:
 		n := int(vm.NextU16())
 
-		items := make([]Value, n+1)
-		for i := 0; i <= n; i++ {
-			items[n-i] = vm.stack.Pop()
+		items := make([]Value, n)
+		for i := n - 1; i >= 0; i-- {
+			items[i] = vm.stack.Pop()
 		}
+
+		vm.stack.Push(&ListValue{
+			items,
+		})
 
 	case InstructionNewList:
 		vm.stack.Push(&ListValue{[]Value{}})
@@ -605,7 +685,7 @@ func (vm *VM) Next() bool {
 	case InstructionAppend:
 		value := vm.stack.Pop()
 		list := vm.stack.Pop().(*ListValue)
-		list.items = append(list.items, value)
+		list.Items = append(list.Items, value)
 		vm.stack.Push(list)
 
 	case InstructionDescend:
@@ -619,8 +699,8 @@ func (vm *VM) Next() bool {
 		vm.stack.Push(&StringValue{v.String()})
 
 	case InstructionStringConcatenation:
-		r := vm.stack.Pop().(*StringValue).string
-		l := vm.stack.Pop().(*StringValue).string
+		r := vm.stack.Pop().(*StringValue).Text
+		l := vm.stack.Pop().(*StringValue).Text
 
 		vm.stack.Push(&StringValue{l + r})
 
@@ -669,7 +749,7 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 		})
 
 		for i := 0; i < len(f.Params); i++ {
-			vm.addVar(f.Params[i].name, args[i])
+			vm.addVar(f.Params[i].Name, args[i])
 		}
 
 		if f.Parent != nil {

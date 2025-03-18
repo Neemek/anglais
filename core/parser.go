@@ -147,6 +147,8 @@ func (p *Parser) factor() (Node, error) {
 		return &StringNode{
 			(*p.prev).Lexeme[1 : len((*p.prev).Lexeme)-1],
 			(*p.prev).Lexeme,
+			p.prev.Start,
+			p.prev.Length,
 		}, nil
 
 	case TokenNumber:
@@ -159,17 +161,37 @@ func (p *Parser) factor() (Node, error) {
 
 		return &NumberNode{
 			num,
+			p.prev.Start,
+			p.prev.Length,
+		}, nil
+
+	case TokenHexadecimal:
+		p.advance()
+		start := (*p.prev).Start
+		num, err := strconv.ParseUint((*p.prev).Lexeme[2:], 16, NumberSize)
+		if err != nil {
+			return nil, err
+		}
+
+		return &NumberNode{
+			float64(num),
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenTrue:
 		p.advance()
 		return &BooleanNode{
 			true,
+			p.prev.Start,
+			p.prev.Length,
 		}, nil
 	case TokenFalse:
 		p.advance()
 		return &BooleanNode{
 			false,
+			p.prev.Start,
+			p.prev.Length,
 		}, nil
 
 	case TokenNil:
@@ -178,6 +200,8 @@ func (p *Parser) factor() (Node, error) {
 
 	case TokenOpenBracket:
 		p.advance()
+
+		start := p.prev.Start
 
 		var values []Node
 		for !p.accept(TokenCloseBracket) {
@@ -198,24 +222,47 @@ func (p *Parser) factor() (Node, error) {
 
 		return &ListNode{
 			values,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	// unary minus
 	case TokenMinus:
 		p.advance()
+		first := p.prev
+
 		f, err := p.factor()
 		if err != nil {
 			return nil, err
 		}
-		return &BinaryNode{
-			BinarySubtraction,
-			&NumberNode{0},
+		return &UnaryNode{
+			UnaryNegate,
 			f,
+			first.Start,
+			p.prev.Start + p.prev.Length,
+		}, nil
+
+	case TokenBang:
+		p.advance()
+		start := p.prev.Start
+
+		v, err := p.factor()
+		if err != nil {
+			return nil, err
+		}
+
+		return &UnaryNode{
+			UnaryNot,
+			v,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenName:
 		p.advance()
 		name := (*p.prev).Lexeme
+		start := p.prev.Start
+		nameEnd := start + p.prev.Length
 
 		if p.curr.Type == TokenOpenParenthesis {
 			args, err := p.parseArgs()
@@ -226,26 +273,37 @@ func (p *Parser) factor() (Node, error) {
 			return &CallNode{
 				&ReferenceNode{
 					name,
+					start,
+					nameEnd,
 				},
 				args,
 				true,
+				start,
+				p.prev.Start + p.prev.Length,
 			}, nil
 		}
 
 		return &ReferenceNode{
 			name,
+			start,
+			nameEnd,
 		}, nil
 
 	case TokenFunc:
 		p.advance()
+		start := p.prev.Start
+
 		params, err := p.parseParams()
 		if err != nil {
 			return nil, err
 		}
 
-		sig, err := p.parseSignature()
-		if err != nil {
-			return nil, err
+		var sig TypeSignature = &NilSignature{}
+		if p.curr.Type != TokenOpenBrace {
+			sig, err = p.parseSignature()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		b, err := p.block(false)
@@ -258,6 +316,8 @@ func (p *Parser) factor() (Node, error) {
 			params,
 			sig,
 			b,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenOpenParenthesis:
@@ -280,6 +340,8 @@ func (p *Parser) factor() (Node, error) {
 }
 
 func (p *Parser) prop() (Node, error) {
+	start := p.curr.Start
+
 	v, err := p.factor()
 	if err != nil {
 		return nil, err
@@ -295,6 +357,8 @@ func (p *Parser) prop() (Node, error) {
 		v = &AccessNode{
 			v,
 			property,
+			start,
+			p.prev.Start + p.prev.Length,
 		}
 
 		// if called, also add
@@ -308,6 +372,8 @@ func (p *Parser) prop() (Node, error) {
 				v,
 				args,
 				true,
+				start,
+				p.prev.Start + p.prev.Length,
 			}
 		}
 	}
@@ -316,6 +382,7 @@ func (p *Parser) prop() (Node, error) {
 }
 
 func (p *Parser) product() (Node, error) {
+	start := p.curr.Start
 	left, err := p.prop()
 	if err != nil {
 		return nil, err
@@ -337,6 +404,8 @@ func (p *Parser) product() (Node, error) {
 			op,
 			left,
 			f,
+			start,
+			p.prev.Start + p.prev.Length,
 		}
 	}
 
@@ -344,6 +413,8 @@ func (p *Parser) product() (Node, error) {
 }
 
 func (p *Parser) term() (Node, error) {
+	start := p.curr.Start
+
 	left, err := p.product()
 	if err != nil {
 		return nil, err
@@ -365,6 +436,8 @@ func (p *Parser) term() (Node, error) {
 			op,
 			left,
 			pr,
+			start,
+			p.prev.Start + p.prev.Length,
 		}
 	}
 
@@ -372,6 +445,7 @@ func (p *Parser) term() (Node, error) {
 }
 
 func (p *Parser) comparison() (Node, error) {
+	start := p.curr.Start
 	left, err := p.term()
 
 	if err != nil {
@@ -409,10 +483,13 @@ func (p *Parser) comparison() (Node, error) {
 		op,
 		left,
 		t,
+		start,
+		p.prev.Start + p.prev.Length,
 	}, nil
 }
 
 func (p *Parser) condition() (Node, error) {
+	start := p.curr.Start
 	left, err := p.comparison()
 	if err != nil {
 		return nil, err
@@ -440,12 +517,15 @@ func (p *Parser) condition() (Node, error) {
 		op,
 		left,
 		c,
+		start,
+		p.prev.Start + p.prev.Length,
 	}, nil
 }
 
 func (p *Parser) statement() (Node, error) {
 	switch (*p.curr).Type {
 	case TokenIf:
+		start := p.curr.Start
 		p.advance()
 
 		condition, err := p.condition()
@@ -476,15 +556,20 @@ func (p *Parser) statement() (Node, error) {
 			condition,
 			then,
 			otherwise,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenName:
 		p.advance()
+		start := p.prev.Start
 		name := (*p.prev).Lexeme
 
 		if (*p.curr).Type == TokenDot {
 			var v Node = &ReferenceNode{
 				name,
+				start,
+				p.prev.Start + p.prev.Length,
 			}
 
 			// parse chains of prop-getting ( "".split().join().length.round() )
@@ -497,6 +582,8 @@ func (p *Parser) statement() (Node, error) {
 				v = &AccessNode{
 					v,
 					property,
+					start,
+					p.prev.Start + p.prev.Length,
 				}
 
 				// if called, also add
@@ -510,6 +597,8 @@ func (p *Parser) statement() (Node, error) {
 						v,
 						args,
 						(*p.curr).Type == TokenDot, // if the chain is continued, keep the value.
+						start,
+						p.prev.Start + p.prev.Length,
 					}
 				}
 			}
@@ -524,9 +613,13 @@ func (p *Parser) statement() (Node, error) {
 			return &CallNode{
 				&ReferenceNode{
 					name,
+					start,
+					start + Pos(len(name)),
 				},
 				args,
 				false,
+				start,
+				p.prev.Start + p.prev.Length,
 			}, nil
 		} else if p.accept(TokenAssign) || p.accept(TokenDeclare) {
 			isDeclaration := p.prev.Type == TokenDeclare
@@ -539,6 +632,8 @@ func (p *Parser) statement() (Node, error) {
 				name,
 				c,
 				isDeclaration,
+				start,
+				p.prev.Start + p.prev.Length,
 			}, nil
 		} else {
 			return p.condition()
@@ -546,6 +641,7 @@ func (p *Parser) statement() (Node, error) {
 
 	case TokenImport:
 		p.advance()
+		start := p.prev.Start
 
 		if err := p.expect(TokenString); err != nil {
 			return nil, err
@@ -555,10 +651,14 @@ func (p *Parser) statement() (Node, error) {
 
 		return &ImportNode{
 			path,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenFunc:
 		p.advance()
+
+		funcStart := p.prev.Start
 
 		if err := p.expect(TokenName); err != nil {
 			return nil, err
@@ -570,7 +670,13 @@ func (p *Parser) statement() (Node, error) {
 			return nil, err
 		}
 
-		yield, err := p.parseSignature()
+		var yield TypeSignature = &NilSignature{}
+		if p.curr.Type != TokenOpenBrace {
+			yield, err = p.parseSignature()
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		b, err := p.block(false)
 		if err != nil {
@@ -584,12 +690,17 @@ func (p *Parser) statement() (Node, error) {
 				params,
 				yield,
 				b,
+				funcStart,
+				p.prev.Start + p.prev.Length,
 			},
 			true,
+			funcStart,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenWhile:
 		p.advance()
+		start := p.prev.Start
 
 		c, err := p.condition()
 		if err != nil {
@@ -604,10 +715,13 @@ func (p *Parser) statement() (Node, error) {
 		return &LoopNode{
 			c,
 			b,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenReturn:
 		p.advance()
+		start := p.prev.Start
 
 		c, err := p.condition()
 		if err != nil {
@@ -616,6 +730,8 @@ func (p *Parser) statement() (Node, error) {
 
 		return &ReturnNode{
 			c,
+			start,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenBreakpoint:
@@ -641,6 +757,8 @@ func (p *Parser) block(canBeStatement bool) (Node, error) {
 		}
 	}
 
+	start := p.prev.Start
+
 	statements := make([]Node, 0)
 
 	for !p.accept(TokenCloseBrace) {
@@ -655,6 +773,8 @@ func (p *Parser) block(canBeStatement bool) (Node, error) {
 
 	return &BlockNode{
 		statements,
+		start,
+		p.prev.Start + p.prev.Length,
 	}, nil
 }
 
@@ -740,6 +860,8 @@ func (p *Parser) parseParams() ([]FunctionParameter, error) {
 }
 
 func (p *Parser) parseSignature() (TypeSignature, error) {
+	var s TypeSignature
+
 	if p.accept(TokenFunc) {
 		if err := p.expect(TokenCloseParenthesis); err != nil {
 			return nil, err
@@ -766,10 +888,10 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			return nil, err
 		}
 
-		return &FunctionSignature{
+		s = &FunctionSignature{
 			in,
 			out,
-		}, nil
+		}
 	}
 
 	if err := p.expect(TokenName); err != nil {
@@ -779,11 +901,11 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 
 	switch name {
 	case "string":
-		return &StringSignature{}, nil
+		s = &StringSignature{}
 	case "number":
-		return &NumberSignature{}, nil
+		s = &NumberSignature{}
 	case "boolean":
-		return &BooleanSignature{}, nil
+		s = &BooleanSignature{}
 	case "list":
 		if err := p.expect(TokenOpenBracket); err != nil {
 			return nil, err
@@ -798,10 +920,28 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			return nil, err
 		}
 
-		return &ListSignature{
+		s = &ListSignature{
 			contents,
+		}
+
+	case "any":
+		s = &AnySignature{}
+	}
+
+	if p.accept(TokenPipe) {
+		other, err := p.parseSignature()
+		if err != nil {
+			return nil, err
+		}
+		return &CompositeSignature{
+			s,
+			other,
 		}, nil
 	}
 
-	panic("unsupported type: " + name)
+	if s == nil {
+		return nil, p.error("unsupported type: "+name, p.prev)
+	}
+
+	return s, nil
 }

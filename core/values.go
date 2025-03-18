@@ -106,6 +106,9 @@ type Value interface {
 
 	// Get a member from the value. An error is returned if the member does not exist
 	Get(string) (Value, error)
+
+	// Clone create a clone of the value. The returned value is a pointer to a new value of the same type as the value.
+	Clone() Value
 }
 
 type NilValue struct{}
@@ -130,8 +133,12 @@ func (v *NilValue) Get(_ string) (Value, error) {
 	return nil, errors.New("nil has no properties")
 }
 
+func (v *NilValue) Clone() Value {
+	return &NilValue{}
+}
+
 type BoolValue struct {
-	bool
+	Boolean bool
 }
 
 func (v *BoolValue) Type() ValueType {
@@ -139,7 +146,7 @@ func (v *BoolValue) Type() ValueType {
 }
 
 func (v *BoolValue) String() string {
-	if v.bool {
+	if v.Boolean {
 		return "true"
 	} else {
 		return "false"
@@ -151,16 +158,22 @@ func (v *BoolValue) DebugString() string {
 }
 
 func (v *BoolValue) Equals(other Value) bool {
-	return other.Type() == BoolValueType && other.(*BoolValue).bool == v.bool
+	return other.Type() == BoolValueType && other.(*BoolValue).Boolean == v.Boolean
 }
 
 func (v *BoolValue) Get(_ string) (Value, error) {
 	return nil, errors.New("booleans have no properties")
 }
 
+func (v *BoolValue) Clone() Value {
+	return &BoolValue{
+		v.Boolean,
+	}
+}
+
 // ObjectValue An object with any number of members (key-value pairs)
 type ObjectValue struct {
-	members map[string]Value
+	Members map[string]Value
 }
 
 func (v *ObjectValue) Type() ValueType {
@@ -169,7 +182,7 @@ func (v *ObjectValue) Type() ValueType {
 
 func (v *ObjectValue) String() string {
 	out := "{"
-	for key, value := range v.members {
+	for key, value := range v.Members {
 		if out != "{" {
 			out += ", "
 		}
@@ -191,8 +204,8 @@ func (v *ObjectValue) Equals(other Value) bool {
 		return false
 	}
 
-	for key, value := range v.members {
-		if !object.members[key].Equals(value) {
+	for key, value := range v.Members {
+		if !object.Members[key].Equals(value) {
 			return false
 		}
 	}
@@ -216,7 +229,7 @@ var ObjectPrototype = map[string]Value{
 				return nil, errors.New("property is not a string")
 			}
 
-			this.members[v.string] = p
+			this.Members[v.Text] = p
 
 			return &NilValue{}, nil
 		},
@@ -225,7 +238,7 @@ var ObjectPrototype = map[string]Value{
 }
 
 func (v *ObjectValue) Get(key string) (Value, error) {
-	if member, ok := v.members[key]; ok {
+	if member, ok := v.Members[key]; ok {
 		return member, nil
 	} else if p, ok := ObjectPrototype[key]; ok {
 		return p, nil
@@ -234,9 +247,21 @@ func (v *ObjectValue) Get(key string) (Value, error) {
 	}
 }
 
+func (v *ObjectValue) Clone() Value {
+	m := make(map[string]Value, len(v.Members))
+
+	for name, mem := range v.Members {
+		m[name] = mem.Clone()
+	}
+
+	return &ObjectValue{
+		m,
+	}
+}
+
 // NumberValue Integer or floating-point values
 type NumberValue struct {
-	float64
+	Number float64
 }
 
 const NumberSize int = 64
@@ -246,7 +271,7 @@ func (v *NumberValue) Type() ValueType {
 }
 
 func (v *NumberValue) String() string {
-	return strconv.FormatFloat(v.float64, 'g', -1, NumberSize)
+	return strconv.FormatFloat(v.Number, 'g', -1, NumberSize)
 }
 
 func (v *NumberValue) DebugString() string {
@@ -254,7 +279,7 @@ func (v *NumberValue) DebugString() string {
 }
 
 func (v *NumberValue) Equals(other Value) bool {
-	return other.Type() == NumberValueType && other.(*NumberValue).float64 == v.float64
+	return other.Type() == NumberValueType && other.(*NumberValue).Number == v.Number
 }
 
 func (v *NumberValue) Get(_ string) (Value, error) {
@@ -262,8 +287,14 @@ func (v *NumberValue) Get(_ string) (Value, error) {
 	return nil, errors.New("numbers have no properties")
 }
 
+func (v *NumberValue) Clone() Value {
+	return &NumberValue{
+		v.Number,
+	}
+}
+
 type StringValue struct {
-	string
+	Text string
 }
 
 func (v *StringValue) Type() ValueType {
@@ -271,7 +302,7 @@ func (v *StringValue) Type() ValueType {
 }
 
 func (v *StringValue) String() string {
-	return v.string
+	return v.Text
 }
 
 func (v *StringValue) DebugString() string {
@@ -279,7 +310,7 @@ func (v *StringValue) DebugString() string {
 }
 
 func (v *StringValue) Equals(other Value) bool {
-	return other.Type() == StringValueType && other.(*StringValue).string == v.string
+	return other.Type() == StringValueType && other.(*StringValue).Text == v.Text
 }
 
 var StringPrototype = map[string]*BuiltinFunctionValue{
@@ -318,9 +349,15 @@ func (v *StringValue) Get(key string) (Value, error) {
 	return nil, errors.New(fmt.Sprintf("string has no property \"%s\"", key))
 }
 
+func (v *StringValue) Clone() Value {
+	return &StringValue{
+		v.Text,
+	}
+}
+
 // ListValue a dynamic list of values
 type ListValue struct {
-	items []Value
+	Items []Value
 }
 
 func (v *ListValue) Type() ValueType {
@@ -329,7 +366,7 @@ func (v *ListValue) Type() ValueType {
 
 func (v *ListValue) String() string {
 	out := "["
-	for i, item := range v.items {
+	for i, item := range v.Items {
 		if i != 0 {
 			out += ", "
 		}
@@ -351,12 +388,12 @@ func (v *ListValue) Equals(other Value) bool {
 
 	l := other.(*ListValue)
 
-	if len(v.items) != len(l.items) {
+	if len(v.Items) != len(l.Items) {
 		return false
 	}
 
-	for i, item := range l.items {
-		if !item.Equals(l.items[i]) {
+	for i, item := range l.Items {
+		if !item.Equals(l.Items[i]) {
 			return false
 		}
 	}
@@ -372,7 +409,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			&NilSignature{},
 		},
 		func(_ *VM, this Value, v []Value) (Value, error) {
-			this.(*ListValue).items = append(this.(*ListValue).items, v[0])
+			this.(*ListValue).Items = append(this.(*ListValue).Items, v[0])
 			return &NilValue{}, nil
 		},
 		nil,
@@ -386,8 +423,8 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			&AnySignature{},
 		},
 		func(_ *VM, this Value, p []Value) (Value, error) {
-			items := this.(*ListValue).items
-			index := int(p[0].(*NumberValue).float64)
+			items := this.(*ListValue).Items
+			index := int(p[0].(*NumberValue).Number)
 
 			if index >= len(items) {
 				return nil, errors.New(fmt.Sprintf("list index %x out of range", index))
@@ -404,7 +441,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			&NumberSignature{},
 		},
 		func(_ *VM, this Value, _ []Value) (Value, error) {
-			return GoToValue(len(this.(*ListValue).items)), nil
+			return GoToValue(len(this.(*ListValue).Items)), nil
 		},
 		nil,
 	},
@@ -426,18 +463,16 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 
 			v := m[0]
 			var f Value
-			f, ok := v.(*FunctionValue)
-			if !ok {
-				f, ok = v.(*BuiltinFunctionValue)
-
-				if !ok {
-					return nil, errors.New(fmt.Sprintf("not a function to apply: %s", v))
-				}
+			switch a := v.(type) {
+			case *FunctionValue, *BuiltinFunctionValue:
+				f = a
+			default:
+				return nil, errors.New(fmt.Sprintf("not a function to apply: %s", v))
 			}
 
-			for i, item := range list.items {
+			for i, item := range list.Items {
 				var err error
-				list.items[i], err = vm.Call(f, []Value{
+				list.Items[i], err = vm.Call(f, []Value{
 					item,
 				})
 
@@ -470,7 +505,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			f := m[0]
 			sum := m[1]
 
-			for _, v := range list.items {
+			for _, v := range list.Items {
 				result, err := vm.Call(f, []Value{sum, v})
 				if err != nil {
 					return nil, err
@@ -490,6 +525,18 @@ func (v *ListValue) Get(key string) (Value, error) {
 	}
 
 	return nil, errors.New(fmt.Sprintf("list has no property \"%s\"", key))
+}
+
+func (v *ListValue) Clone() Value {
+	n := make([]Value, len(v.Items))
+
+	for i, item := range v.Items {
+		n[i] = item.Clone()
+	}
+
+	return &ListValue{
+		n,
+	}
 }
 
 type FunctionValue struct {
@@ -521,6 +568,15 @@ func (v *FunctionValue) Get(_ string) (Value, error) {
 	return nil, errors.New("functions have no properties")
 }
 
+func (v *FunctionValue) Clone() Value {
+	return &FunctionValue{
+		v.Name,
+		v.Params,
+		v.Chunk,
+		v.Parent,
+	}
+}
+
 type BuiltinFunctionValue struct {
 	Name      string
 	Signature *FunctionSignature
@@ -547,6 +603,15 @@ func (v *BuiltinFunctionValue) Equals(other Value) bool {
 
 func (v *BuiltinFunctionValue) Get(_ string) (Value, error) {
 	return nil, errors.New("functions have no properties")
+}
+
+func (v *BuiltinFunctionValue) Clone() Value {
+	return &BuiltinFunctionValue{
+		v.Name,
+		v.Signature,
+		v.F,
+		v.Parent,
+	}
 }
 
 // VariableValue a value wrapper for variables kept on the stack
@@ -579,4 +644,12 @@ func (v *VariableValue) Equals(other Value) bool {
 
 func (v *VariableValue) Get(_ string) (Value, error) {
 	return nil, errors.New("variables have no properties")
+}
+
+func (v *VariableValue) Clone() Value {
+	return &VariableValue{
+		v.name,
+		v.value.Clone(),
+		v.scope,
+	}
 }

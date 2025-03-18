@@ -1,0 +1,14 @@
+
+func assertEqual(a: any, b: any) {
+    if a != b {
+        write(format("assertion error: % should (but doesn't) equal %", [a, b]))
+        exit(1)
+    }
+}
+
+func assertNotEqual(a: any, b: any) {
+    if a == b {
+        write(format("assertion error: % shouldn't (but does) equal %", [a, b]))
+        exit(1)
+    }
+}

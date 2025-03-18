@@ -1,0 +1,13 @@
+
+list := []
+
+list.append(1)
+list.append(2)
+
+assertEq(list, [1, 2])
+
+other := list
+other.append(3)
+
+assertEq(other, [1, 2, 3])
+assertEq(list, [1, 2])

@@ -29,6 +29,7 @@ const (
 	TokenSemicolon
 
 	TokenNumber
+	TokenHexadecimal
 	TokenString
 	TokenName
 
@@ -65,6 +66,7 @@ const (
 	TokenLessThanOrEqual
 
 	TokenDoubleAmpersand
+	TokenPipe
 	TokenDoublePipe
 
 	TokenBreakpoint
@@ -156,6 +158,10 @@ func (t TokenType) String() string {
 		return "import"
 	case TokenColon:
 		return "colon"
+	case TokenPipe:
+		return "pipe"
+	case TokenHexadecimal:
+		return "hexadecimal"
 	}
 
 	return "UNDEFINED TOKENTYPE STRING CONVERSION"
@@ -279,7 +285,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			return l.makeToken(TokenDoublePipe), nil
 		}
 
-		return l.makeToken(TokenError), errors.New("malformed token (got '|', expected '|' to follow)")
+		return l.makeToken(TokenPipe), nil
 
 	case '"':
 		// include ending quote
@@ -330,6 +336,19 @@ func (l *Lexer) NextToken() (Token, error) {
 			default:
 				return l.makeToken(TokenName), nil
 			}
+		} else if c == '0' && l.peek() != '.' {
+			if l.peek() == 'x' {
+				l.advance()
+
+				// hex
+				for unicode.In(l.peek(), unicode.Hex_Digit) {
+					l.advance()
+				}
+
+				return l.makeToken(TokenHexadecimal), nil
+			}
+
+			return l.makeToken(TokenNumber), nil
 		} else if unicode.IsDigit(c) {
 			for unicode.IsDigit(l.peek()) {
 				l.advance()
