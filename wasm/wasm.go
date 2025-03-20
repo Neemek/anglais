@@ -55,7 +55,8 @@ func jsErrorOfString(err string) interface{} {
 func run(_ js.Value, args []js.Value) interface{} {
 	source := args[0].String()
 	outputHandler := args[1]
-	resolver := args[2]
+	errorHandler := args[2]
+	resolver := args[3]
 	log.Printf("got source: %s", source)
 
 	lexer := core.NewLexer(source)
@@ -72,12 +73,20 @@ func run(_ js.Value, args []js.Value) interface{} {
 	tree, err := parser.Parse()
 
 	if err != nil {
-		return jsErrorOfString(err.Error())
+		var e core.ParsingError
+		if errors.As(err, &e) {
+			errorHandler.Invoke(e.Format([]rune(source)))
+			return nil
+		}
+		errorHandler.Invoke(err.Error())
+		return nil
 	}
 
 	log.Printf("Parsed tree: %s", tree.String())
 
 	compiler := core.NewCompiler([]rune(source))
+
+	log.Printf("Set imports resolver", tree.String())
 
 	compiler.SetImportsResolver(&JsResolver{
 		resolver,
@@ -91,6 +100,13 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	err = compiler.Compile(tree)
 	if err != nil {
+		var e core.CompilerError
+		if errors.As(err, &e) {
+			errorHandler.Invoke(e.Format())
+			return nil
+		}
+
+		errorHandler.Invoke(err.Error())
 		return nil
 	}
 
