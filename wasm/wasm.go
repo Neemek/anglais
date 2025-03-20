@@ -105,18 +105,23 @@ func run(_ js.Value, args []js.Value) interface{} {
 			[]core.TypeSignature{&core.StringSignature{}},
 			&core.NilSignature{},
 		},
-		F: func(vm *core.VM, this core.Value, v map[string]core.Value) (core.Value, error) {
-			log.Printf("Writing value: %s", v["value"].String())
-			outputHandler.Invoke(js.ValueOf(v["value"].String() + "\n"))
+		F: func(vm *core.VM, this core.Value, args []core.Value) (core.Value, error) {
+			s := args[0].String()
+			log.Printf("Writing value: %s", s)
+			outputHandler.Invoke(js.ValueOf(s + "\n"))
 			return nil, nil
 		},
 	})
 	vm.SetGlobal("print", &core.BuiltinFunctionValue{
-		Name:       "print",
-		Parameters: []string{"value"},
-		F: func(vm *core.VM, this core.Value, v map[string]core.Value) (core.Value, error) {
-			log.Printf("Printing value: %s", v["value"].String())
-			outputHandler.Invoke(js.ValueOf(v["value"].String()))
+		Name: "print",
+		Signature: &core.FunctionSignature{
+			In:  []core.TypeSignature{&core.StringSignature{}},
+			Out: &core.NilSignature{},
+		},
+		F: func(vm *core.VM, this core.Value, args []core.Value) (core.Value, error) {
+			s := args[0].String()
+			log.Printf("Printing value: %s", s)
+			outputHandler.Invoke(js.ValueOf(s))
 			return nil, nil
 		},
 	})
