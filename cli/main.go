@@ -101,7 +101,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 
 		// if there were parsing errors, print them out
 		if err != nil {
-			print(err.(*core.ParsingError).Format([]rune(src)))
+			print(err.(core.ParsingError).Format([]rune(src)))
 			log.Fatal("Parsing had errors")
 		}
 

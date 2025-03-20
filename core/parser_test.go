@@ -914,7 +914,7 @@ func TestParser_Parse(t *testing.T) {
 			tree, err := p.Parse()
 
 			if err != nil {
-				t.Fatalf("Unexpected error(s): %s", err.(*ParsingError).Format([]rune(SerializeTokens(data.tokens))))
+				t.Fatalf("Unexpected error(s): %s", err.(ParsingError).Format([]rune(SerializeTokens(data.tokens))))
 			}
 
 			t.Logf("Checking parsed tree")

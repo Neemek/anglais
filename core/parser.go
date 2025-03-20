@@ -13,12 +13,12 @@ type ParsingError struct {
 	Causer      *Token
 }
 
-func (p *ParsingError) Error() string {
+func (p ParsingError) Error() string {
 	return p.Description
 }
 
 // Format Print a rich and informative error
-func (p *ParsingError) Format(src []rune) string {
+func (p ParsingError) Format(src []rune) string {
 	builder := strings.Builder{}
 
 	lineNumber := 1
@@ -38,13 +38,17 @@ func (p *ParsingError) Format(src []rune) string {
 		}
 	}
 
-	builder.WriteString(" \t v ")
+	descriptor := fmt.Sprintf("%d:%d", lineNumber, int(p.Causer.Start)-lineBeginning+1)
 	builder.WriteString(p.Description)
 	builder.WriteRune('\n')
 
-	builder.WriteString(fmt.Sprintf("  %d:%d\t | %s", lineNumber, int(p.Causer.Start)-lineBeginning+1, string(src[lineBeginning:lineEnd])))
+	builder.WriteString(descriptor)
+	builder.WriteString(" | ")
+	builder.WriteString(string(src[lineBeginning:lineEnd]))
 
-	builder.WriteString("\n\t ^")
+	builder.WriteString("\n")
+	builder.WriteString(strings.Repeat(" ", len(descriptor)))
+	builder.WriteString("  ")
 	for i := lineBeginning; i <= int(p.Causer.Start); i++ {
 		builder.WriteRune(' ')
 	}
@@ -134,7 +138,7 @@ func (p *Parser) advance() {
 }
 
 func (p *Parser) error(error string, causer *Token) error {
-	return &ParsingError{
+	return ParsingError{
 		Description: error,
 		Causer:      causer,
 	}

@@ -94,7 +94,7 @@ func TestAll(t *testing.T) {
 			tree, err := p.Parse()
 
 			if err != nil {
-				print(err.(*ParsingError).Format([]rune(tc.src)))
+				print(err.(ParsingError).Format([]rune(tc.src)))
 				t.Fatalf("parser had an error")
 			}
 
