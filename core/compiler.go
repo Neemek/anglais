@@ -12,6 +12,8 @@ type Compiler struct {
 
 	imports  map[string]Node
 	resolver ImportsResolver
+	source   []rune
+	Warnings []CompilerError
 
 	stack *Stack[LocalVariable]
 }
@@ -29,25 +31,29 @@ type LocalVariable struct {
 type CompilerError struct {
 	Description string
 	Causer      Node
+	Source      []rune
 }
 
 func (e CompilerError) Error() string {
 	return e.Description
 }
 
-func (e CompilerError) Format(src []rune) string {
+func (e CompilerError) Format() string {
 	b := strings.Builder{}
 
+	src := e.Source
+
 	b.WriteString(e.Description)
-	b.WriteString("\n")
 
 	// highlight offending area
 	start, end := e.Causer.Bounds()
 
+	lineEnd := 0
 	lineStart := 0
 	line := 1
 	pos := 0
-	for i := Pos(0); i < start; i++ {
+
+	for i := Pos(0); i <= start; i++ {
 		pos++
 
 		if src[i] == '\n' {
@@ -57,37 +63,51 @@ func (e CompilerError) Format(src []rune) string {
 		}
 	}
 
-	lineEnd := lineStart
-	for lineEnd < len(src) {
-		lineEnd++
-		if src[lineEnd] == '\n' {
-			break
+	for lineEnd < int(end) {
+		b.WriteString("\n")
+		lineEnd = lineStart
+		for lineEnd < len(src) {
+			lineEnd++
+			if src[lineEnd] == '\n' {
+				break
+			}
 		}
+
+		begin := max(0, int(start)-lineStart)
+		length := int(min(end, Pos(lineEnd)) - max(start, Pos(lineStart)))
+
+		lineDescriptor := fmt.Sprintf("%d:%d~%d",
+			line,
+			begin,
+			begin+length,
+		)
+
+		b.WriteString(lineDescriptor)
+		b.WriteString(" | ")
+
+		b.WriteString(string(src[lineStart+1 : lineEnd]))
+		b.WriteString("\n")
+
+		b.WriteString(strings.Repeat(" ", len(lineDescriptor)))
+		b.WriteString("  ")
+		b.WriteString(strings.Repeat(" ", max(int(start)-lineStart, 0)))
+		b.WriteString(strings.Repeat("^", length))
+
+		lineStart = lineEnd
+		line++
 	}
-
-	lineDescriptor := fmt.Sprintf("%d:%d~%d", line, pos, int(end-start)+pos)
-
-	b.WriteString(lineDescriptor)
-	b.WriteString("\t | ")
-
-	b.WriteString(string(src[lineStart+1 : lineEnd]))
-	b.WriteString("\n")
-
-	b.WriteString(strings.Repeat(" ", len(lineDescriptor)))
-	b.WriteString("\t   ")
-	b.WriteString(strings.Repeat(" ", int(start)-lineStart-1))
-	b.WriteString(strings.Repeat("^", int(end-start)))
-
 	return b.String()
 }
 
-func NewCompiler() *Compiler {
+func NewCompiler(source []rune) *Compiler {
 	c := &Compiler{
 		NewChunk(make([]Bytecode, 0), make([]Value, 0)),
 		0,
 		0,
 		make(map[string]Node),
 		nil,
+		source,
+		[]CompilerError{},
 		NewStack[LocalVariable](256),
 	}
 
@@ -202,20 +222,29 @@ func (c *Compiler) Compile(tree Node) error {
 		c.add(InstructionNil)
 
 	case BlockNodeType:
-		c.descend()
+		c.addDescend()
 		for _, n := range tree.(*BlockNode).statements {
 			err := c.Compile(n)
 			if err != nil {
 				return err
 			}
 		}
-		c.ascend()
+		c.addAscend()
 
 	case ConditionalNodeType:
 		n := tree.(*ConditionalNode)
 
+		// make sure condition is boolean
+		sig, err := c.deduceSignature(n.condition)
+		if err != nil {
+			return err
+		}
+		if sig.Type() != TypeBoolean {
+			return c.error(fmt.Sprintf("condition cannot give non-boolean type %s", sig), n.condition)
+		}
+
 		// the stack should have whether the condition was truthful
-		err := c.Compile(n.condition)
+		err = c.Compile(n.condition)
 		if err != nil {
 			return err
 		}
@@ -256,8 +285,17 @@ func (c *Compiler) Compile(tree Node) error {
 	case LoopNodeType:
 		n := tree.(*LoopNode)
 
+		// make sure condition is boolean
+		sig, err := c.deduceSignature(n.condition)
+		if err != nil {
+			return err
+		}
+		if sig.Type() != TypeBoolean {
+			return c.error(fmt.Sprintf("cannot loop over value of type %s; requires boolean", sig), n.condition)
+		}
+
 		conditionPos := c.ip
-		err := c.Compile(n.condition)
+		err = c.Compile(n.condition)
 		if err != nil {
 			return err
 		}
@@ -305,6 +343,14 @@ func (c *Compiler) Compile(tree Node) error {
 		f, ok := s.(*FunctionSignature)
 		if !ok {
 			return c.error(fmt.Sprintf("cannot call non-function value of type %s", s), n)
+		}
+
+		if !n.keep && f.Out.Type() != TypeNil {
+			c.warn(fmt.Sprintf("shouldn't void result of function call (output is non-nil %s)", f.Out), n)
+		}
+
+		if len(n.args) != len(f.In) {
+			return c.error(fmt.Sprintf("wrong argument count: function of signature %s got %d, requires %d", f, len(n.args), len(f.In)), n)
 		}
 
 		for i, arg := range n.args {
@@ -365,6 +411,10 @@ func (c *Compiler) Compile(tree Node) error {
 			c.registerVar(p.Name, p.Signature)
 		}
 
+		if err := c.affirmReturnSignature(n.logic, n.yield); err != nil {
+			return err
+		}
+
 		err = c.Compile(n.logic)
 		if err != nil {
 			return err
@@ -377,6 +427,7 @@ func (c *Compiler) Compile(tree Node) error {
 		mc.Constants[fi] = &FunctionValue{
 			n.name,
 			n.parameters,
+			n.yield,
 			c.Chunk,
 			nil,
 		}
@@ -493,18 +544,13 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 		return &NumberSignature{}, nil
 	case ReferenceNodeType:
 		n := tree.(*ReferenceNode)
-		if c.isGlobal(n.name) {
-			return SignatureOf(DefaultGlobals[n.name]), nil
+		sig, err := c.getVarSignature(n.name, n)
+		if err != nil {
+			return nil, err
 		}
 
-		for i := c.stack.Current - 1; i >= 0; i-- {
-			v := c.stack.items[i]
-			if v.name == n.name {
-				return v.signature, nil
-			}
-		}
+		return sig, nil
 
-		return nil, c.error(fmt.Sprintf("variable %s not defined", n.name), n)
 	case BooleanNodeType:
 		return &BooleanSignature{}, nil
 	case NilNodeType:
@@ -564,7 +610,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 			}
 		case BinaryAnd, BinaryOr:
 			if l.Type() != TypeBoolean {
-				return nil, c.error(fmt.Sprintf("cannot perform binary %s on type %s", l, n.BinaryOperation), n)
+				return nil, c.error(fmt.Sprintf("cannot perform binary %s on non-boolean type %s", n.BinaryOperation, l), n)
 			}
 
 			return &BooleanSignature{}, nil
@@ -572,7 +618,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 			return &BooleanSignature{}, nil
 		case BinaryLess, BinaryGreater, BinaryLessEqual, BinaryGreaterEqual:
 			if l.Type() != TypeNumber {
-				return nil, c.error(fmt.Sprintf("cannot perform number comparison (%s) on type %s", l, n.BinaryOperation), n)
+				return nil, c.error(fmt.Sprintf("cannot perform number comparison (%s) on non-number type %s", n.BinaryOperation, l), n)
 			}
 
 			return &BooleanSignature{}, nil
@@ -588,15 +634,30 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 
 		switch sig.Type() {
 		case TypeString:
-			return SignatureOf(StringPrototype[n.property]), nil
+			v := StringPrototype[n.property]
+			if v == nil {
+				return nil, c.error(fmt.Sprintf("string has no property %s", n.property), tree)
+			}
+
+			return SignatureOf(v), nil
 		case TypeList:
-			return SignatureOf(ListPrototype[n.property]), nil
+			v := ListPrototype[n.property]
+			if v == nil {
+				return nil, c.error(fmt.Sprintf("list has no property %s", n.property), tree)
+			}
+
+			return SignatureOf(v), nil
 		case TypeObject:
 			if v, ok := ObjectPrototype[n.property]; ok {
 				return SignatureOf(v), nil
 			}
 
-			return sig.(*ObjectSignature).Members[n.property], nil
+			v := sig.(*ObjectSignature).Members[n.property]
+			if v == nil {
+				return nil, c.error(fmt.Sprintf("object has no property %s", n.property), tree)
+			}
+
+			return v, nil
 
 		default:
 			return nil, c.error(fmt.Sprintf("cannot access property from value of type %s", sig), n)
@@ -674,14 +735,31 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 	}
 }
 
+func (c *Compiler) getVarSignature(name string, causer Node) (TypeSignature, error) {
+	if c.isGlobal(name) {
+		return SignatureOf(DefaultGlobals[name]), nil
+	}
+
+	for i := c.stack.Current - 1; i >= 0; i-- {
+		v := c.stack.items[i]
+		if v.name == name {
+			return v.signature, nil
+		}
+	}
+
+	return nil, c.error(fmt.Sprintf("variable %s not defined", name), causer)
+}
+
 func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 	switch tree.Type() {
 	case BlockNodeType:
+		c.descend()
 		for _, stmt := range tree.(*BlockNode).statements {
 			if err := c.affirmReturnSignature(stmt, sig); err != nil {
 				return err
 			}
 		}
+		c.ascend()
 
 	case ReturnNodeType:
 		n := tree.(*ReturnNode)
@@ -713,6 +791,33 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 		if err := c.affirmReturnSignature(n.do, sig); err != nil {
 			return err
 		}
+
+	case AssignNodeType:
+		n := tree.(*AssignNode)
+
+		if !n.declare {
+			prev, err := c.getVarSignature(n.name, n)
+			if err != nil {
+				return err
+			}
+
+			sig, err := c.deduceSignature(n.value)
+			if err != nil {
+				return err
+			}
+
+			if !sig.Matches(prev) {
+				return c.error(fmt.Sprintf("cannot assign value of type %s to variable of type %s", prev, sig), n.value)
+			}
+
+			return nil
+		}
+
+		sig, err := c.deduceSignature(n.value)
+		if err != nil {
+			return err
+		}
+		c.registerVar(n.name, sig)
 	default:
 	}
 
@@ -902,6 +1007,10 @@ func (c *Compiler) ascend() {
 
 	for ; c.stack.Current > 0 && c.stack.Peek().scope > int(c.scope); c.stack.Pop() {
 	}
+}
+
+func (c *Compiler) addAscend() {
+	c.ascend()
 
 	if c.scope != 0 {
 		c.add(InstructionAscend)
@@ -910,6 +1019,10 @@ func (c *Compiler) ascend() {
 
 func (c *Compiler) descend() {
 	c.scope++
+}
+
+func (c *Compiler) addDescend() {
+	c.descend()
 	if c.scope != 1 {
 		c.add(InstructionDescend)
 	}
@@ -919,7 +1032,12 @@ func (c *Compiler) error(msg string, causer Node) CompilerError {
 	return CompilerError{
 		msg,
 		causer,
+		c.source,
 	}
+}
+
+func (c *Compiler) warn(msg string, causer Node) {
+	c.Warnings = append(c.Warnings, c.error(msg, causer))
 }
 
 func (c *Compiler) resolveImport(path string) Node {

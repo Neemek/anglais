@@ -77,7 +77,7 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	log.Printf("Parsed tree: %s", tree.String())
 
-	compiler := core.NewCompiler()
+	compiler := core.NewCompiler([]rune(source))
 
 	compiler.SetImportsResolver(&JsResolver{
 		resolver,

@@ -234,6 +234,7 @@ var ObjectPrototype = map[string]Value{
 			return &NilValue{}, nil
 		},
 		nil,
+		false,
 	},
 }
 
@@ -338,6 +339,17 @@ var StringPrototype = map[string]*BuiltinFunctionValue{
 			return GoToValue(out), nil
 		},
 		nil,
+		true,
+	},
+	"length": {
+		Name: "length",
+		Signature: &FunctionSignature{
+			[]TypeSignature{},
+			&NumberSignature{},
+		},
+		F: func(vm *VM, this Value, _ []Value) (Value, error) {
+			return GoToValue(len(this.(*StringValue).Text)), nil
+		},
 	},
 }
 
@@ -392,7 +404,7 @@ func (v *ListValue) Equals(other Value) bool {
 		return false
 	}
 
-	for i, item := range l.Items {
+	for i, item := range v.Items {
 		if !item.Equals(l.Items[i]) {
 			return false
 		}
@@ -413,6 +425,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			return &NilValue{}, nil
 		},
 		nil,
+		false,
 	},
 	"at": {
 		"at",
@@ -433,6 +446,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			return items[index], nil
 		},
 		nil,
+		false,
 	},
 	"length": {
 		"length",
@@ -444,6 +458,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			return GoToValue(len(this.(*ListValue).Items)), nil
 		},
 		nil,
+		false,
 	},
 	"map": {
 		"map",
@@ -484,6 +499,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			return list, nil
 		},
 		nil,
+		false,
 	},
 	"reduce": {
 		"reduce",
@@ -516,6 +532,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			return sum, nil
 		},
 		nil,
+		false,
 	},
 }
 
@@ -542,6 +559,7 @@ func (v *ListValue) Clone() Value {
 type FunctionValue struct {
 	Name   string
 	Params []FunctionParameter
+	Yield  TypeSignature
 	Chunk  *Chunk
 	Parent Value
 }
@@ -572,6 +590,7 @@ func (v *FunctionValue) Clone() Value {
 	return &FunctionValue{
 		v.Name,
 		v.Params,
+		v.Yield,
 		v.Chunk,
 		v.Parent,
 	}
@@ -582,6 +601,7 @@ type BuiltinFunctionValue struct {
 	Signature *FunctionSignature
 	F         func(*VM, Value, []Value) (Value, error)
 	Parent    Value
+	Constant  bool
 }
 
 func (v *BuiltinFunctionValue) Type() ValueType {
@@ -611,6 +631,7 @@ func (v *BuiltinFunctionValue) Clone() Value {
 		v.Signature,
 		v.F,
 		v.Parent,
+		v.Constant,
 	}
 }
 

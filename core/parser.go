@@ -148,7 +148,7 @@ func (p *Parser) factor() (Node, error) {
 			(*p.prev).Lexeme[1 : len((*p.prev).Lexeme)-1],
 			(*p.prev).Lexeme,
 			p.prev.Start,
-			p.prev.Length,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenNumber:
@@ -162,7 +162,7 @@ func (p *Parser) factor() (Node, error) {
 		return &NumberNode{
 			num,
 			p.prev.Start,
-			p.prev.Length,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenHexadecimal:
@@ -184,14 +184,14 @@ func (p *Parser) factor() (Node, error) {
 		return &BooleanNode{
 			true,
 			p.prev.Start,
-			p.prev.Length,
+			p.prev.Start + p.prev.Length,
 		}, nil
 	case TokenFalse:
 		p.advance()
 		return &BooleanNode{
 			false,
 			p.prev.Start,
-			p.prev.Length,
+			p.prev.Start + p.prev.Length,
 		}, nil
 
 	case TokenNil:

@@ -53,11 +53,35 @@ func SignatureOf(v Value) TypeSignature {
 	case *BoolValue:
 		return &BooleanSignature{}
 	case *ListValue:
-		return &ListSignature{}
+		// try to deduce contents type
+		var contains TypeSignature
+
+		for _, p := range t.Items {
+			sig := SignatureOf(p)
+			if contains == nil {
+				contains = sig
+			} else if !contains.Matches(sig) {
+				contains = &AnySignature{}
+				break
+			}
+		}
+
+		return &ListSignature{
+			contains,
+		}
 	case *ObjectValue:
 		return &ObjectSignature{}
 	case *FunctionValue:
-		return &FunctionSignature{}
+		params := make([]TypeSignature, len(t.Params))
+
+		for i, p := range t.Params {
+			params[i] = p.Signature
+		}
+
+		return &FunctionSignature{
+			params,
+			t.Yield,
+		}
 	case *BuiltinFunctionValue:
 		return t.Signature
 	}
@@ -267,8 +291,11 @@ func (s *FunctionSignature) String() string {
 		b.WriteString(t.String())
 	}
 
-	b.WriteString(") ")
-	b.WriteString(s.Out.String())
+	b.WriteString(")")
+	if s.Out.Type() != TypeNil {
+		b.WriteString(" ")
+		b.WriteString(s.Out.String())
+	}
 
 	return b.String()
 }

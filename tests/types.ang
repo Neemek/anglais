@@ -1,0 +1,8 @@
+
+assertEq(type(1), "number")
+assertEq(type("Hello"), "string")
+assertEq(type(true), "boolean")
+
+# lists
+assertEq(type(["Hello", "world"]), "list[string]")
+assertEq(type([0, 1]), "list[number]")

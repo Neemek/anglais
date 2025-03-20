@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewCompiler(t *testing.T) {
-	c := NewCompiler()
+	c := NewCompiler([]rune{})
 
 	if c == nil {
 		t.Fatal("NewCompiler returned nil")
@@ -23,7 +23,7 @@ func TestNewCompiler(t *testing.T) {
 
 func BenchmarkNewCompiler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewCompiler()
+		_ = NewCompiler([]rune{})
 	}
 }
 
@@ -267,51 +267,52 @@ func GetCompileTestData() map[string]CompileTestData {
 				&NumberValue{3},
 			},
 		},
-		"sum_function": {&BlockNode{
-			[]Node{
-				&AssignNode{
-					"sum",
-					&FunctionNode{
+		"sum_function": {
+			&BlockNode{
+				[]Node{
+					&AssignNode{
 						"sum",
-						[]FunctionParameter{
-							{
-								"a",
-								&NumberSignature{},
+						&FunctionNode{
+							"sum",
+							[]FunctionParameter{
+								{
+									"a",
+									&NumberSignature{},
+								},
+								{
+									"b",
+									&NumberSignature{},
+								},
 							},
-							{
-								"b",
-								&NumberSignature{},
-							},
-						},
-						&NumberSignature{},
-						&BlockNode{
-							[]Node{
-								&ReturnNode{
-									&BinaryNode{
-										BinaryAddition,
-										&ReferenceNode{
-											"a",
-											0, 0,
-										},
-										&ReferenceNode{
-											"b",
+							&NumberSignature{},
+							&BlockNode{
+								[]Node{
+									&ReturnNode{
+										&BinaryNode{
+											BinaryAddition,
+											&ReferenceNode{
+												"a",
+												0, 0,
+											},
+											&ReferenceNode{
+												"b",
+												0, 0,
+											},
 											0, 0,
 										},
 										0, 0,
 									},
-									0, 0,
 								},
+								0, 0,
 							},
 							0, 0,
 						},
+						true,
 						0, 0,
 					},
-					true,
-					0, 0,
 				},
+				0, 0,
 			},
-			0, 0,
-		},
 			[]Value{
 				&VariableValue{
 					"sum",
@@ -328,6 +329,7 @@ func GetCompileTestData() map[string]CompileTestData {
 								&NumberSignature{},
 							},
 						},
+						&NumberSignature{},
 						NewChunk(
 							[]Bytecode{
 								InstructionDescend,
@@ -355,7 +357,7 @@ func GetCompileTestData() map[string]CompileTestData {
 						&FunctionNode{
 							"a",
 							[]FunctionParameter{},
-							&NilSignature{},
+							&NumberSignature{},
 							&BlockNode{
 								[]Node{
 									&AssignNode{
@@ -400,6 +402,7 @@ func GetCompileTestData() map[string]CompileTestData {
 					&FunctionValue{
 						"a",
 						[]FunctionParameter{},
+						&NumberSignature{},
 						NewChunk(
 							[]Bytecode{
 								InstructionDescend,
@@ -416,6 +419,54 @@ func GetCompileTestData() map[string]CompileTestData {
 						nil,
 					},
 					0,
+				},
+			},
+		},
+		"two_lists": {
+			tree: &BlockNode{
+				statements: []Node{
+					&AssignNode{
+						name: "a",
+						value: &ListNode{
+							items: []Node{
+								&NumberNode{value: 1},
+								&NumberNode{value: 2},
+							},
+						},
+						declare: true,
+					},
+					&AssignNode{
+						name: "b",
+						value: &ListNode{
+							items: []Node{
+								&StringNode{value: "Hello"},
+								&StringNode{value: "world"},
+							},
+						},
+						declare: true,
+					},
+				},
+			},
+			expectedStack: []Value{
+				&VariableValue{
+					name: "a",
+					value: &ListValue{
+						Items: []Value{
+							&NumberValue{1},
+							&NumberValue{2},
+						},
+					},
+					scope: 0,
+				},
+				&VariableValue{
+					name: "b",
+					value: &ListValue{
+						Items: []Value{
+							&StringValue{"Hello"},
+							&StringValue{"world"},
+						},
+					},
+					scope: 0,
 				},
 			},
 		},
@@ -448,7 +499,7 @@ func TestCompile(t *testing.T) {
 	for name, testCase := range data {
 		t.Run(name, func(t *testing.T) {
 			t.Log("Initializing compiler")
-			c := NewCompiler()
+			c := NewCompiler([]rune(testCase.tree.String()))
 
 			t.Log("Compiling node tree")
 			err := c.Compile(testCase.tree)
@@ -477,7 +528,7 @@ func BenchmarkCompile(b *testing.B) {
 	for name, testCase := range data {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				c := NewCompiler()
+				c := NewCompiler([]rune{})
 				_ = c.Compile(testCase.tree)
 			}
 		})
@@ -487,7 +538,7 @@ func BenchmarkCompile(b *testing.B) {
 func TestCompiler_AddU16(t *testing.T) {
 	for i := 0; i <= 0xffff; i++ {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			c := NewCompiler()
+			c := NewCompiler([]rune{})
 			c.addU16(uint16(i))
 
 			if c.Chunk.Bytecode[0] != Bytecode(i>>8) {
@@ -521,7 +572,7 @@ func TestCompiler_CleanStack(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
-			c := NewCompiler()
+			c := NewCompiler([]rune(tc.tree.String()))
 			err := c.Compile(tc.tree)
 			if err != nil {
 				t.Fatalf("Compiling failed: %v", err)

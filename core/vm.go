@@ -311,6 +311,7 @@ var DefaultGlobals = map[string]Value{
 			return nil, nil
 		},
 		nil,
+		false,
 	},
 	"print": &BuiltinFunctionValue{
 		"print",
@@ -323,6 +324,7 @@ var DefaultGlobals = map[string]Value{
 			return nil, nil
 		},
 		nil,
+		false,
 	},
 	"format": &BuiltinFunctionValue{
 		"format",
@@ -356,6 +358,7 @@ var DefaultGlobals = map[string]Value{
 			return GoToValue(b.String()), nil
 		},
 		nil,
+		true,
 	},
 	"char": &BuiltinFunctionValue{
 		"char",
@@ -372,6 +375,7 @@ var DefaultGlobals = map[string]Value{
 			}, nil
 		},
 		nil,
+		true,
 	},
 	"assertEq": &BuiltinFunctionValue{
 		"assertEq",
@@ -393,6 +397,7 @@ var DefaultGlobals = map[string]Value{
 			return &NilValue{}, nil
 		},
 		nil,
+		false,
 	},
 	"assertNotEq": &BuiltinFunctionValue{
 		"assertNotEq",
@@ -414,6 +419,7 @@ var DefaultGlobals = map[string]Value{
 			return &NilValue{}, nil
 		},
 		nil,
+		false,
 	},
 	"str": &BuiltinFunctionValue{
 		"str",
@@ -425,6 +431,21 @@ var DefaultGlobals = map[string]Value{
 			return GoToValue(args[0].String()), nil
 		},
 		nil,
+		true,
+	},
+	"type": &BuiltinFunctionValue{
+		Name: "type",
+		Signature: &FunctionSignature{
+			In:  []TypeSignature{&AnySignature{}},
+			Out: &StringSignature{},
+		},
+		F: func(vm *VM, this Value, args []Value) (Value, error) {
+			v := args[0]
+			sig := SignatureOf(v)
+
+			return GoToValue(sig.String()), nil
+		},
+		Constant: true,
 	},
 	"exit": &BuiltinFunctionValue{
 		"exit",
@@ -437,6 +458,7 @@ var DefaultGlobals = map[string]Value{
 			return &NilValue{}, nil
 		},
 		nil,
+		false,
 	},
 }
 

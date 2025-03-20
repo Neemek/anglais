@@ -78,6 +78,32 @@ func CompareValues(t *testing.T, got Value, want Value) {
 
 		CompareValues(t, n.value, m.value)
 
+	case ListValueType:
+		n := got.(*ListValue)
+		m := want.(*ListValue)
+
+		if len(n.Items) != len(m.Items) {
+			t.Fatalf("list items length mismatch: got %d, want %d", len(n.Items), len(m.Items))
+		}
+
+		for i, v := range n.Items {
+			t.Logf("comparing list items #%d: got %s, want %s", i, v, m.Items[i])
+			CompareValues(t, v, m.Items[i])
+		}
+
+	case ObjectValueType:
+		n := got.(*ObjectValue)
+		m := want.(*ObjectValue)
+
+		if len(n.Members) != len(m.Members) {
+			t.Fatalf("object members count mismatch: got %d, want %d", len(n.Members), len(m.Members))
+		}
+
+		for k, v := range n.Members {
+			t.Logf("comparing object member %s: got %s, want %s", k, v, m.Members[k])
+			CompareValues(t, v, m.Members[k])
+		}
+
 	default:
 		panic("unimplemented comparison")
 	}

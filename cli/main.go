@@ -14,8 +14,9 @@ type Context struct {
 }
 
 type RunCmd struct {
-	Bytecode bool   `name:"bytecode" short:"c" help:"Run file as if it's bytecode"`
-	File     string `arg:"" name:"file" help:"File to read program from" type:"existingfile"`
+	IgnoreWarnings bool   `name:"ignore-warnings" help:"Ignore warning messages"`
+	Bytecode       bool   `name:"bytecode" short:"c" help:"Run file as if it's bytecode"`
+	File           string `arg:"" name:"file" help:"File to read program from" type:"existingfile"`
 }
 
 // WorkingDirectoryResolver resolves imports relative to the working directory
@@ -30,9 +31,9 @@ func (r *WorkingDirectoryResolver) Resolve(path string) (core.Node, error) {
 		return nil, err
 	}
 
-	str := string(f)
+	src := string(f)
 
-	l := core.NewLexer(str)
+	l := core.NewLexer(src)
 
 	tokens, err := l.Tokenize()
 	if err != nil {
@@ -107,7 +108,7 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		if ctx.Debug {
 			log.Println("Initialized compiler")
 		}
-		c := core.NewCompiler()
+		c := core.NewCompiler([]rune(src))
 
 		if ctx.Debug {
 			log.Println("Setting imports resolver")
@@ -125,9 +126,17 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 		if err != nil {
 			var e core.CompilerError
 			if errors.As(err, &e) {
-				log.Fatal(e.Format([]rune(src)))
+				log.Fatal(e.Format())
 			}
 			log.Fatal(err)
+		}
+
+		// if there were non-critical warnings, report them
+		if !cmd.IgnoreWarnings && len(c.Warnings) != 0 {
+			for _, warning := range c.Warnings {
+				log.Println(warning.Format())
+			}
+			log.Fatal("compiler reported warning(s) (ignore warnings with the --ignore-warnings option)")
 		}
 
 		chunk = c.Chunk
@@ -216,7 +225,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 		log.Println("Initialized compiler")
 	}
 
-	c := core.NewCompiler()
+	c := core.NewCompiler([]rune(src))
 
 	if ctx.Debug {
 		log.Println("Setting import resolver")
@@ -235,9 +244,16 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	if err != nil {
 		var e core.CompilerError
 		if errors.As(err, &e) {
-			log.Fatal(e.Format([]rune(src)))
+			log.Fatal(e.Format())
 		}
 		log.Fatal(err)
+	}
+
+	// if there were non-critical warnings, report them
+	if len(c.Warnings) != 0 {
+		for _, warning := range c.Warnings {
+			log.Println(warning.Format())
+		}
 	}
 
 	if ctx.Debug {

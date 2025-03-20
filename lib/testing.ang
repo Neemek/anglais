@@ -1,8 +1,17 @@
 
+NAMESPACE := ""
+
+func namespace(name: string, test: func()) {
+    NAMESPACE = name
+    test()
+}
+
 func assertEqual(a: any, b: any) {
     if a != b {
         write(format("assertion error: % should (but doesn't) equal %", [a, b]))
         exit(1)
+    } else if env("DEBUG") != "" {
+        write(format("assertion success: % equals %", [a, b]))
     }
 }
 
@@ -10,5 +19,7 @@ func assertNotEqual(a: any, b: any) {
     if a == b {
         write(format("assertion error: % shouldn't (but does) equal %", [a, b]))
         exit(1)
+    } else if env("DEBUG") != "" {
+        write(format("assertion success: % doesn't equal %", [a, b]))
     }
 }

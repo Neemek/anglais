@@ -439,6 +439,10 @@ func (n ConditionalNode) Type() NodeType {
 }
 
 func (n ConditionalNode) String() string {
+	if n.otherwise == nil {
+		return fmt.Sprintf("if %s then %s", n.condition.String(), n.do.String())
+	}
+
 	return fmt.Sprintf("if %s then %s otheriwise %s", n.condition.String(), n.do.String(), n.otherwise.String())
 }
 

@@ -22,7 +22,7 @@ func GetAllTestCases() map[string]AllTestCase {
 			},
 		},
 		"func": {
-			"func sum(a: number, b: number) {\n\treturn a + b\n}\nsum(1, 2)",
+			"func sum(a: number, b: number) number {\n\treturn a + b\n}\n_ = sum(1, 2)",
 			[]Value{
 				&VariableValue{
 					"sum",
@@ -48,6 +48,21 @@ func GetAllTestCases() map[string]AllTestCase {
 								InstructionAscend,
 							},
 							Constants: []Value{&StringValue{"a"}, &StringValue{"b"}},
+						},
+					},
+					0,
+				},
+			},
+		},
+		"list": {
+			"a := [1, 2]",
+			[]Value{
+				&VariableValue{
+					"a",
+					&ListValue{
+						[]Value{
+							&NumberValue{1},
+							&NumberValue{2},
 						},
 					},
 					0,
@@ -84,7 +99,7 @@ func TestAll(t *testing.T) {
 			}
 
 			t.Log("Initializing compiler")
-			c := NewCompiler()
+			c := NewCompiler([]rune(tc.src))
 
 			t.Log("Compiling parse tree")
 			err = c.Compile(tree)
@@ -119,7 +134,7 @@ func BenchmarkAll(b *testing.B) {
 				p := NewParser(tokens)
 				tree, _ := p.Parse()
 
-				c := NewCompiler()
+				c := NewCompiler([]rune(tc.src))
 				_ = c.Compile(tree)
 
 				vm := NewVM(c.Chunk, 256, 256)
