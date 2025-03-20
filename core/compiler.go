@@ -58,7 +58,7 @@ func (e CompilerError) Format() string {
 
 		if src[i] == '\n' {
 			line++
-			lineStart = int(i)
+			lineStart = int(i) + 1
 			pos = 0
 		}
 	}
@@ -67,10 +67,12 @@ func (e CompilerError) Format() string {
 		b.WriteString("\n")
 		lineEnd = lineStart
 		for lineEnd < len(src) {
-			lineEnd++
 			if src[lineEnd] == '\n' {
+				lineEnd++
 				break
 			}
+
+			lineEnd++
 		}
 
 		begin := max(0, int(start)-lineStart)
@@ -85,11 +87,11 @@ func (e CompilerError) Format() string {
 		b.WriteString(lineDescriptor)
 		b.WriteString(" | ")
 
-		b.WriteString(string(src[lineStart+1 : lineEnd]))
+		b.WriteString(string(src[lineStart : lineEnd-1]))
 		b.WriteString("\n")
 
 		b.WriteString(strings.Repeat(" ", len(lineDescriptor)))
-		b.WriteString("  ")
+		b.WriteString("   ")
 		b.WriteString(strings.Repeat(" ", max(int(start)-lineStart, 0)))
 		b.WriteString(strings.Repeat("^", length))
 
@@ -326,6 +328,10 @@ func (c *Compiler) Compile(tree Node) error {
 			}
 			c.add(InstructionPop)
 		} else {
+			if c.isVarDeclaredHere(n.name) {
+				return c.error(fmt.Sprintf("%s is already declared in this scope", n.name), n)
+			}
+
 			err := c.setVar(n.name, n.value, n.declare)
 			if err != nil {
 				return err
@@ -769,7 +775,7 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 		}
 
 		if !sig.Matches(v) {
-			return c.error(fmt.Sprintf("function cannot return a value with type %s. must be %s", v, sig), n.value)
+			return c.error(fmt.Sprintf("function cannot return a value with type %s. defined to be %s", v, sig), n.value)
 		}
 
 	case ConditionalNodeType:
@@ -822,6 +828,18 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 	}
 
 	return nil
+}
+
+// isVarDeclaredHere check whether a variable is declared in the current scope
+func (c *Compiler) isVarDeclaredHere(name string) bool {
+	for i := c.stack.Current - 1; i >= 0 && c.stack.items[i].scope == int(c.scope); i-- {
+		v := c.stack.items[i]
+		if v.name == name {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Compiler) getVar(name string) {
