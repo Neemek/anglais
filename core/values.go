@@ -68,15 +68,6 @@ func GoToValue(gov interface{}) Value {
 		return &StringValue{
 			v,
 		}
-	case []interface{}:
-		values := make([]Value, len(v))
-		for i, value := range v {
-			values[i] = GoToValue(value)
-		}
-
-		return &ListValue{
-			values,
-		}
 	case map[string]interface{}:
 		values := map[string]Value{}
 		for key, value := range v {
@@ -86,9 +77,17 @@ func GoToValue(gov interface{}) Value {
 		return &ObjectValue{
 			values,
 		}
+	case Value:
+		return v
+	default:
+		if reflect.TypeOf(v).Kind() == reflect.Slice {
+			return &ListValue{
+				v.([]Value),
+			}
+		}
 	}
 
-	panic(fmt.Sprintf("unsupported automatic type conversion: %v (%s)", gov, reflect.TypeOf(gov).Name()))
+	panic(fmt.Sprintf("unsupported automatic type conversion: %v (%s)", gov, reflect.TypeOf(gov)))
 }
 
 type Value interface {
@@ -319,24 +318,26 @@ var StringPrototype = map[string]*BuiltinFunctionValue{
 		"split",
 		&FunctionSignature{
 			[]TypeSignature{&StringSignature{}},
-			&NilSignature{},
+			&ListSignature{
+				&StringSignature{},
+			},
 		},
 		func(vm *VM, this Value, v []Value) (Value, error) {
 			str := this.(*StringValue).String()
 			sep := v[0].(*StringValue).String()
 
-			var out []string
+			var out []Value
 			tmp := strings.Builder{}
 			for i := 0; i < len(str)-len(sep); i++ {
 				tmp.WriteRune([]rune(str)[i])
 
 				if str[i:i+len(sep)] == sep {
-					out = append(out, tmp.String())
+					out = append(out, &StringValue{tmp.String()})
 					tmp.Reset()
 				}
 			}
 
-			return GoToValue(out), nil
+			return &ListValue{out}, nil
 		},
 		nil,
 		true,
@@ -456,47 +457,6 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 		},
 		func(_ *VM, this Value, _ []Value) (Value, error) {
 			return GoToValue(len(this.(*ListValue).Items)), nil
-		},
-		nil,
-		false,
-	},
-	"map": {
-		"map",
-		&FunctionSignature{
-			[]TypeSignature{
-				&FunctionSignature{
-					[]TypeSignature{
-						&AnySignature{},
-					},
-					&AnySignature{},
-				},
-			},
-			&ListSignature{},
-		},
-		func(vm *VM, value Value, m []Value) (Value, error) {
-			list := value.(*ListValue)
-
-			v := m[0]
-			var f Value
-			switch a := v.(type) {
-			case *FunctionValue, *BuiltinFunctionValue:
-				f = a
-			default:
-				return nil, errors.New(fmt.Sprintf("not a function to apply: %s", v))
-			}
-
-			for i, item := range list.Items {
-				var err error
-				list.Items[i], err = vm.Call(f, []Value{
-					item,
-				})
-
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			return list, nil
 		},
 		nil,
 		false,

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 echo '=== Building CLI ==='
 cd cli || exit 1

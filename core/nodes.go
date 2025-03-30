@@ -32,7 +32,6 @@ const (
 	FunctionNodeType
 	ReturnNodeType
 	AccessNodeType
-	ImportNodeType
 	BreakpointNodeType
 )
 
@@ -70,8 +69,6 @@ func (n NodeType) String() string {
 		return "Access"
 	case BreakpointNodeType:
 		return "Breakpoint"
-	case ImportNodeType:
-		return "Import"
 	case UnaryNodeType:
 		return "Unary"
 	}
@@ -402,25 +399,6 @@ func (n BlockNode) String() string {
 }
 
 func (n BlockNode) Bounds() (Pos, Pos) {
-	return n.start, n.end
-}
-
-type ImportNode struct {
-	path string
-
-	start Pos
-	end   Pos
-}
-
-func (n ImportNode) Type() NodeType {
-	return ImportNodeType
-}
-
-func (n ImportNode) String() string {
-	return fmt.Sprintf("import %s", n.path)
-}
-
-func (n ImportNode) Bounds() (Pos, Pos) {
 	return n.start, n.end
 }
 

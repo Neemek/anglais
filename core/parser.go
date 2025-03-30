@@ -8,9 +8,15 @@ import (
 	"strings"
 )
 
+type FormatedError interface {
+	Error() string
+	Format() string
+}
+
 type ParsingError struct {
 	Description string
 	Causer      *Token
+	Source      string
 }
 
 func (p ParsingError) Error() string {
@@ -18,7 +24,8 @@ func (p ParsingError) Error() string {
 }
 
 // Format Print a rich and informative error
-func (p ParsingError) Format(src []rune) string {
+func (p ParsingError) Format() string {
+	src := []rune(p.Source)
 	builder := strings.Builder{}
 
 	lineNumber := 1
@@ -62,20 +69,44 @@ func (p ParsingError) Format(src []rune) string {
 }
 
 type Parser struct {
+	source string
 	tokens []Token
 	prev   *Token
 	curr   *Token
 	pos    Pos
 }
 
-func NewParser(tokens []Token) *Parser {
+func NewParser(source string, tokens []Token) *Parser {
 	return &Parser{
+		source: source,
 		tokens: tokens,
 		pos:    0,
 	}
 }
 
-func (p *Parser) Parse() (Node, error) {
+type Program struct {
+	Imports []string
+	Block   *BlockNode
+}
+
+func (p *Program) String() string {
+	builder := strings.Builder{}
+
+	builder.WriteString("=== Imports ===\n")
+	for _, i := range p.Imports {
+		builder.WriteString(i)
+		builder.WriteString("\n")
+	}
+	builder.WriteString("===============\n")
+
+	builder.WriteString(p.Block.String())
+
+	return builder.String()
+}
+
+func (p *Parser) Parse() (*Program, error) {
+	imports := make([]string, 0)
+
 	// top level statements
 	statements := make([]Node, 0)
 
@@ -83,6 +114,14 @@ func (p *Parser) Parse() (Node, error) {
 	p.advance()
 
 	for int(p.pos) < len(p.tokens) && p.curr.Type != TokenEOF {
+		if p.accept(TokenImport) {
+			if err := p.expect(TokenString); err != nil {
+				return nil, err
+			}
+
+			imports = append(imports, p.prev.Lexeme[1:len(p.prev.Lexeme)-1])
+		}
+
 		b, err := p.block(true)
 
 		if err != nil {
@@ -92,8 +131,13 @@ func (p *Parser) Parse() (Node, error) {
 		statements = append(statements, b)
 	}
 
-	return &BlockNode{
-		statements: statements,
+	return &Program{
+		imports,
+		&BlockNode{
+			statements,
+			0,
+			p.curr.Start + p.curr.Length,
+		},
 	}, nil
 }
 
@@ -141,6 +185,7 @@ func (p *Parser) error(error string, causer *Token) error {
 	return ParsingError{
 		Description: error,
 		Causer:      causer,
+		Source:      p.source,
 	}
 }
 
@@ -643,22 +688,6 @@ func (p *Parser) statement() (Node, error) {
 			return p.condition()
 		}
 
-	case TokenImport:
-		p.advance()
-		start := p.prev.Start
-
-		if err := p.expect(TokenString); err != nil {
-			return nil, err
-		}
-
-		path := p.prev.Lexeme[1 : len(p.prev.Lexeme)-1]
-
-		return &ImportNode{
-			path,
-			start,
-			p.prev.Start + p.prev.Length,
-		}, nil
-
 	case TokenFunc:
 		p.advance()
 
@@ -867,13 +896,19 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 	var s TypeSignature
 
 	if p.accept(TokenFunc) {
-		if err := p.expect(TokenCloseParenthesis); err != nil {
+		if err := p.expect(TokenOpenParenthesis); err != nil {
 			return nil, err
 		}
 
 		var in []TypeSignature
 
-		for !p.accept(TokenCloseParenthesis) && (len(in) == 0 || p.accept(TokenComma)) {
+		for !p.accept(TokenCloseParenthesis) {
+			if len(in) > 0 {
+				if err := p.expect(TokenComma); err != nil {
+					return nil, err
+				}
+			}
+
 			sig, err := p.parseSignature()
 
 			if err != nil {
@@ -881,10 +916,6 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			}
 
 			in = append(in, sig)
-		}
-
-		if err := p.expect(TokenCloseParenthesis); err != nil {
-			return nil, err
 		}
 
 		out, err := p.parseSignature()
@@ -896,40 +927,43 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			in,
 			out,
 		}
-	}
-
-	if err := p.expect(TokenName); err != nil {
-		return nil, err
-	}
-	name := (*p.prev).Lexeme
-
-	switch name {
-	case "string":
-		s = &StringSignature{}
-	case "number":
-		s = &NumberSignature{}
-	case "boolean":
-		s = &BooleanSignature{}
-	case "list":
-		if err := p.expect(TokenOpenBracket); err != nil {
+	} else {
+		if err := p.expect(TokenName); err != nil {
 			return nil, err
 		}
+		name := (*p.prev).Lexeme
 
-		contents, err := p.parseSignature()
-		if err != nil {
-			return nil, err
+		switch name {
+		case "string":
+			s = &StringSignature{}
+		case "number":
+			s = &NumberSignature{}
+		case "boolean":
+			s = &BooleanSignature{}
+		case "list":
+			if err := p.expect(TokenOpenBracket); err != nil {
+				return nil, err
+			}
+
+			contents, err := p.parseSignature()
+			if err != nil {
+				return nil, err
+			}
+
+			if err := p.expect(TokenCloseBracket); err != nil {
+				return nil, err
+			}
+
+			s = &ListSignature{
+				contents,
+			}
+
+		case "any":
+			s = &AnySignature{}
+
+		default:
+			return nil, p.error("unsupported type: "+name, p.prev)
 		}
-
-		if err := p.expect(TokenCloseBracket); err != nil {
-			return nil, err
-		}
-
-		s = &ListSignature{
-			contents,
-		}
-
-	case "any":
-		s = &AnySignature{}
 	}
 
 	if p.accept(TokenPipe) {
@@ -941,10 +975,6 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			s,
 			other,
 		}, nil
-	}
-
-	if s == nil {
-		return nil, p.error("unsupported type: "+name, p.prev)
 	}
 
 	return s, nil

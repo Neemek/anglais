@@ -69,6 +69,48 @@ func GetAllTestCases() map[string]AllTestCase {
 				},
 			},
 		},
+		"constant_list_concat": {
+			"a := [1, 2] + [3]",
+			[]Value{
+				&VariableValue{
+					"a",
+					&ListValue{
+						[]Value{
+							&NumberValue{1},
+							&NumberValue{2},
+							&NumberValue{3},
+						},
+					},
+					0,
+				},
+			},
+		},
+		"list_concat": {
+			"a := [1, 2]\nb := a + [3]",
+			[]Value{
+				&VariableValue{
+					"a",
+					&ListValue{
+						[]Value{
+							&NumberValue{1},
+							&NumberValue{2},
+						},
+					},
+					0,
+				},
+				&VariableValue{
+					"b",
+					&ListValue{
+						[]Value{
+							&NumberValue{1},
+							&NumberValue{2},
+							&NumberValue{3},
+						},
+					},
+					0,
+				},
+			},
+		},
 	}
 }
 
@@ -102,7 +144,7 @@ func TestAll(t *testing.T) {
 			c := NewCompiler([]rune(tc.src))
 
 			t.Log("Compiling parse tree")
-			err = c.Compile(tree)
+			err = c.compile(tree)
 			if err != nil {
 				t.Fatalf("Compiler had an error: %s", err)
 			}
@@ -135,7 +177,7 @@ func BenchmarkAll(b *testing.B) {
 				tree, _ := p.Parse()
 
 				c := NewCompiler([]rune(tc.src))
-				_ = c.Compile(tree)
+				_ = c.compile(tree)
 
 				vm := NewVM(c.Chunk, 256, 256)
 

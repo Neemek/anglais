@@ -6,6 +6,7 @@ import (
 	"log"
 	"neemek.com/anglais/core"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -24,123 +25,132 @@ type WorkingDirectoryResolver struct {
 	workingDirectory string
 }
 
-func (r *WorkingDirectoryResolver) Resolve(path string) (core.Node, error) {
+func (r *WorkingDirectoryResolver) Resolve(path string) (string, error) {
 	pth := filepath.Join(r.workingDirectory, path)
 	f, err := os.ReadFile(pth)
+	if err != nil {
+		return "", err
+	}
+
+	return string(f), nil
+}
+
+func (r *WorkingDirectoryResolver) IsSame(a, b string) bool {
+	apath := filepath.Clean(filepath.Join(r.workingDirectory, a))
+	bpath := filepath.Clean(filepath.Join(r.workingDirectory, b))
+
+	return apath == bpath
+}
+
+func makeChunk(ctx *Context, filepath string, ignoreWarnings bool) (*core.Chunk, error) {
+	if ctx.Debug {
+		log.Println("Reading file")
+	}
+
+	f, err := os.ReadFile(filepath)
+
 	if err != nil {
 		return nil, err
 	}
 
 	src := string(f)
 
+	if ctx.Debug {
+		log.Println("Initialized lexer")
+	}
 	l := core.NewLexer(src)
 
+	if ctx.Debug {
+		log.Println("Lexing all tokens")
+	}
 	tokens, err := l.Tokenize()
+
 	if err != nil {
 		return nil, err
 	}
 
-	p := core.NewParser(tokens)
+	if len(tokens) <= 1 {
+		return nil, errors.New("empty file")
+	}
+
+	if ctx.Debug {
+		log.Printf("Lexed %d tokens", len(tokens))
+
+	}
+	p := core.NewParser(src, tokens)
+
+	if ctx.Debug {
+		log.Println("Initialized parser")
+	}
 
 	tree, err := p.Parse()
-	if err != nil {
-		return nil, err
+
+	if ctx.Debug {
+		log.Printf("Parsed tree, meaning:\n%s", tree)
 	}
 
-	return tree, nil
+	// if there were parsing errors, print them out
+	if err != nil {
+		print(err.(core.ParsingError).Format())
+		log.Fatal("Parsing had errors")
+	}
+
+	if ctx.Debug {
+		log.Println("Initialized compiler")
+	}
+	c := core.NewCompiler([]rune(src))
+
+	if ctx.Debug {
+		log.Println("Setting imports resolver")
+	}
+
+	dir, _ := path.Split(filepath)
+	c.SetImportsResolver(&WorkingDirectoryResolver{
+		dir,
+	})
+
+	if ctx.Debug {
+		log.Println("Compiling parse tree")
+	}
+	err = c.Compile(tree)
+	if err != nil {
+		var e core.FormatedError
+		if errors.As(err, &e) {
+			log.Fatal(e.Format())
+		}
+		log.Fatal(err)
+	}
+
+	// if there were non-critical warnings, report them
+	if !ignoreWarnings && len(c.Warnings) != 0 {
+		for _, warning := range c.Warnings {
+			log.Println(warning.Format())
+		}
+		log.Fatal("compiler reported warning(s) (ignore warnings with the --ignore-warnings option)")
+	}
+
+	return c.Chunk, nil
 }
 
 func (cmd *RunCmd) Run(ctx *Context) error {
-	if ctx.Debug {
-		log.Println("Reading file")
-	}
-
-	f, err := os.ReadFile(cmd.File)
-
-	if err != nil {
-		return err
-	}
-
 	var chunk *core.Chunk
 	if !cmd.Bytecode {
-		src := string(f)
-
-		if ctx.Debug {
-			log.Println("Initialized lexer")
-		}
-		l := core.NewLexer(src)
-
-		if ctx.Debug {
-			log.Println("Lexing all tokens")
-		}
-		tokens, err := l.Tokenize()
-
+		c, err := makeChunk(ctx, cmd.File, cmd.IgnoreWarnings)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
-		if len(tokens) <= 1 {
-			log.Fatal("Empty file")
-		}
-
-		if ctx.Debug {
-			log.Printf("Lexed %d tokens", len(tokens))
-
-		}
-		p := core.NewParser(tokens)
-
-		if ctx.Debug {
-			log.Println("Initialized parser")
-		}
-
-		tree, err := p.Parse()
-
-		if ctx.Debug {
-			log.Printf("Parsed tree, meaning:\n%s", tree)
-		}
-
-		// if there were parsing errors, print them out
-		if err != nil {
-			print(err.(core.ParsingError).Format([]rune(src)))
-			log.Fatal("Parsing had errors")
-		}
-
-		if ctx.Debug {
-			log.Println("Initialized compiler")
-		}
-		c := core.NewCompiler([]rune(src))
-
-		if ctx.Debug {
-			log.Println("Setting imports resolver")
-		}
-
-		dir, _ := filepath.Split(cmd.File)
-		c.SetImportsResolver(&WorkingDirectoryResolver{
-			dir,
-		})
-
-		if ctx.Debug {
-			log.Println("Compiling parse tree")
-		}
-		err = c.Compile(tree)
-		if err != nil {
-			var e core.CompilerError
-			if errors.As(err, &e) {
-				log.Fatal(e.Format())
-			}
-			log.Fatal(err)
-		}
-
-		// if there were non-critical warnings, report them
-		if !cmd.IgnoreWarnings && len(c.Warnings) != 0 {
-			for _, warning := range c.Warnings {
-				log.Println(warning.Format())
-			}
-			log.Fatal("compiler reported warning(s) (ignore warnings with the --ignore-warnings option)")
-		}
-
-		chunk = c.Chunk
+		chunk = c
 	} else {
+		if ctx.Debug {
+			log.Println("Reading file")
+		}
+
+		f, err := os.ReadFile(cmd.File)
+
+		if err != nil {
+			return err
+		}
+
 		if ctx.Debug {
 			log.Println("Registering GOB types")
 		}
@@ -175,85 +185,15 @@ func (cmd *RunCmd) Run(ctx *Context) error {
 }
 
 type CompileCmd struct {
-	File   string `arg:"" name:"file" help:"File to compile program from" type:"existingfile"`
-	Output string `arg:"" name:"output" help:"File path to output bytecode to" type:"path"`
+	File           string `arg:"" name:"file" help:"File to compile program from" type:"existingfile"`
+	Output         string `arg:"" name:"output" help:"File path to output bytecode to" type:"path"`
+	IgnoreWarnings bool   `name:"ignore-warnings" help:"Ignore warning messages"`
 }
 
 func (cmd *CompileCmd) Run(ctx *Context) error {
-	if ctx.Debug {
-		log.Println("Reading file")
-	}
-
-	f, err := os.ReadFile(cmd.File)
-
+	c, err := makeChunk(ctx, cmd.File, cmd.IgnoreWarnings)
 	if err != nil {
 		return err
-	}
-
-	src := string(f)
-
-	if ctx.Debug {
-		log.Println("Initializing lexer")
-	}
-	l := core.NewLexer(src)
-
-	if ctx.Debug {
-		log.Println("Lexing all tokens")
-	}
-	tokens, err := l.Tokenize()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if ctx.Debug {
-		log.Println("Initializing parser")
-	}
-	p := core.NewParser(tokens)
-
-	if ctx.Debug {
-		log.Println("Parsing tree")
-	}
-
-	tree, err := p.Parse()
-
-	if err != nil {
-		log.Fatal(err.(*core.ParsingError).Format([]rune(src)))
-	}
-
-	if ctx.Debug {
-		log.Println("Initialized compiler")
-	}
-
-	c := core.NewCompiler([]rune(src))
-
-	if ctx.Debug {
-		log.Println("Setting import resolver")
-	}
-
-	dir, _ := filepath.Split(cmd.File)
-	c.SetImportsResolver(&WorkingDirectoryResolver{
-		dir,
-	})
-
-	if ctx.Debug {
-		log.Println("Compiling parse tree")
-	}
-
-	err = c.Compile(tree)
-	if err != nil {
-		var e core.CompilerError
-		if errors.As(err, &e) {
-			log.Fatal(e.Format())
-		}
-		log.Fatal(err)
-	}
-
-	// if there were non-critical warnings, report them
-	if len(c.Warnings) != 0 {
-		for _, warning := range c.Warnings {
-			log.Println(warning.Format())
-		}
 	}
 
 	if ctx.Debug {
@@ -266,7 +206,7 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 		log.Println("Serializing chunk")
 	}
 
-	serialized := c.Chunk.Serialize()
+	serialized := c.Serialize()
 
 	if ctx.Debug {
 		log.Println("Writing file")

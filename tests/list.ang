@@ -22,3 +22,6 @@ while x <= 100 {
 
     x = x + 1
 }
+
+assertEq([1, 2] + [3], [1, 2, 3])
+assertEq(["Eny", "meanie"] + ["minie", "moe"], ["Eny", "meanie", "minie", "moe"])

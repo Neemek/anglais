@@ -19,8 +19,8 @@ while n < fibonacci_numbers.length() {
     n = n + 1
 }
 
-# return to start of line
-print(format("%[%D", [char(0x1B), n]))
+# return to start of line (with carriage return \r)
+print(char(0x0D))
 
 x := 0
 while x < fibonacci_numbers.length() {

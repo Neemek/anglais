@@ -502,7 +502,7 @@ func TestCompile(t *testing.T) {
 			c := NewCompiler([]rune(testCase.tree.String()))
 
 			t.Log("Compiling node tree")
-			err := c.Compile(testCase.tree)
+			err := c.compile(testCase.tree)
 			if err != nil {
 				t.Fatalf("Compiling failed: %v", err)
 			}
@@ -529,7 +529,7 @@ func BenchmarkCompile(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				c := NewCompiler([]rune{})
-				_ = c.Compile(testCase.tree)
+				_ = c.compile(testCase.tree)
 			}
 		})
 	}
@@ -573,7 +573,7 @@ func TestCompiler_CleanStack(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			c := NewCompiler([]rune(tc.tree.String()))
-			err := c.Compile(tc.tree)
+			err := c.compile(tc.tree)
 			if err != nil {
 				t.Fatalf("Compiling failed: %v", err)
 			}

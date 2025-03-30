@@ -560,6 +560,37 @@ func GetExecutionTestData() map[string]struct {
 				&NumberValue{5},
 			},
 		},
+		"list_concat": {
+			NewChunk(
+				[]Bytecode{
+					InstructionConstant, 0,
+					InstructionConstant, 1,
+					InstructionConcatLists,
+				},
+				[]Value{
+					&ListValue{
+						[]Value{
+							&NumberValue{1},
+							&NumberValue{2},
+						},
+					},
+					&ListValue{
+						[]Value{
+							&NumberValue{3},
+						},
+					},
+				},
+			),
+			[]Value{
+				&ListValue{
+					[]Value{
+						&NumberValue{1},
+						&NumberValue{2},
+						&NumberValue{3},
+					},
+				},
+			},
+		},
 	}
 }
 

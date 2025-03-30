@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -10,16 +11,18 @@ type Compiler struct {
 	ip    Pos
 	scope Pos
 
-	imports  map[string]Node
-	resolver ImportsResolver
-	source   []rune
-	Warnings []CompilerError
+	imports     []string
+	importStack *Stack[string]
+	resolver    ImportsResolver
+	source      []rune
+	Warnings    []CompilerError
 
 	stack *Stack[LocalVariable]
 }
 
 type ImportsResolver interface {
-	Resolve(path string) (Node, error)
+	Resolve(path string) (string, error)
+	IsSame(a, b string) bool
 }
 
 type LocalVariable struct {
@@ -106,7 +109,8 @@ func NewCompiler(source []rune) *Compiler {
 		NewChunk(make([]Bytecode, 0), make([]Value, 0)),
 		0,
 		0,
-		make(map[string]Node),
+		make([]string, 0),
+		NewStack[string](256),
 		nil,
 		source,
 		[]CompilerError{},
@@ -141,7 +145,17 @@ func (c *Compiler) addConstant(value Value) {
 	c.add(Bytecode(len(chunk.Constants) - 1))
 }
 
-func (c *Compiler) Compile(tree Node) error {
+func (c *Compiler) Compile(p *Program) error {
+	for _, i := range p.Imports {
+		if err := c.resolveImport(i); err != nil {
+			return err
+		}
+	}
+
+	return c.compile(p.Block)
+}
+
+func (c *Compiler) compile(tree Node) error {
 	if tree == nil {
 		panic("compile called with nil value")
 	}
@@ -172,7 +186,7 @@ func (c *Compiler) Compile(tree Node) error {
 			c.addConstant(v)
 		} else {
 			for _, n := range l.items {
-				err := c.Compile(n)
+				err := c.compile(n)
 				if err != nil {
 					return err
 				}
@@ -200,7 +214,7 @@ func (c *Compiler) Compile(tree Node) error {
 			c.add(InstructionConstant)
 			c.addConstant(v)
 		} else {
-			err := c.Compile(tree.(*UnaryNode).value)
+			err := c.compile(tree.(*UnaryNode).value)
 			if err != nil {
 				return err
 			}
@@ -226,7 +240,7 @@ func (c *Compiler) Compile(tree Node) error {
 	case BlockNodeType:
 		c.addDescend()
 		for _, n := range tree.(*BlockNode).statements {
-			err := c.Compile(n)
+			err := c.compile(n)
 			if err != nil {
 				return err
 			}
@@ -246,7 +260,7 @@ func (c *Compiler) Compile(tree Node) error {
 		}
 
 		// the stack should have whether the condition was truthful
-		err = c.Compile(n.condition)
+		err = c.compile(n.condition)
 		if err != nil {
 			return err
 		}
@@ -259,7 +273,7 @@ func (c *Compiler) Compile(tree Node) error {
 		c.advance(2)
 
 		// this part would be executed if the value was true
-		err = c.Compile(n.do)
+		err = c.compile(n.do)
 		if err != nil {
 			return err
 		}
@@ -277,7 +291,7 @@ func (c *Compiler) Compile(tree Node) error {
 		c.putU16(jumpByPos, uint16(c.ip-jumpByPos-2))
 
 		if n.otherwise != nil {
-			err := c.Compile(n.otherwise)
+			err := c.compile(n.otherwise)
 			if err != nil {
 				return err
 			}
@@ -297,7 +311,7 @@ func (c *Compiler) Compile(tree Node) error {
 		}
 
 		conditionPos := c.ip
-		err = c.Compile(n.condition)
+		err = c.compile(n.condition)
 		if err != nil {
 			return err
 		}
@@ -306,7 +320,7 @@ func (c *Compiler) Compile(tree Node) error {
 		jumpValuePos := c.ip
 		c.advance(2)
 
-		err = c.Compile(n.do)
+		err = c.compile(n.do)
 		if err != nil {
 			return err
 		}
@@ -322,13 +336,13 @@ func (c *Compiler) Compile(tree Node) error {
 
 		if n.name == "_" {
 			// allow non-ish statements
-			err := c.Compile(n.value)
+			err := c.compile(n.value)
 			if err != nil {
 				return err
 			}
 			c.add(InstructionPop)
 		} else {
-			if c.isVarDeclaredHere(n.name) {
+			if n.declare && c.isVarDeclaredHere(n.name) {
 				return c.error(fmt.Sprintf("%s is already declared in this scope", n.name), n)
 			}
 
@@ -370,13 +384,13 @@ func (c *Compiler) Compile(tree Node) error {
 				return c.error(fmt.Sprintf("argument #%d does not have expected type signature: got %s, requires %s", i, sig, f.In[i]), arg)
 			}
 
-			err = c.Compile(arg)
+			err = c.compile(arg)
 			if err != nil {
 				return err
 			}
 		}
 
-		err = c.Compile(n.source)
+		err = c.compile(n.source)
 		if err != nil {
 			return err
 		}
@@ -413,6 +427,7 @@ func (c *Compiler) Compile(tree Node) error {
 		// reset instruction pointer (ip)
 		c.ip = 0
 
+		c.descend()
 		for _, p := range n.parameters {
 			c.registerVar(p.Name, p.Signature)
 		}
@@ -421,14 +436,11 @@ func (c *Compiler) Compile(tree Node) error {
 			return err
 		}
 
-		err = c.Compile(n.logic)
+		err = c.compile(n.logic)
 		if err != nil {
 			return err
 		}
-
-		if n.logic.Type() != BlockNodeType {
-			c.stack.Pop()
-		}
+		c.ascend()
 
 		mc.Constants[fi] = &FunctionValue{
 			n.name,
@@ -444,7 +456,7 @@ func (c *Compiler) Compile(tree Node) error {
 
 	case AccessNodeType:
 		n := tree.(*AccessNode)
-		err := c.Compile(n.source)
+		err := c.compile(n.source)
 		if err != nil {
 			return err
 		}
@@ -453,20 +465,8 @@ func (c *Compiler) Compile(tree Node) error {
 			n.property,
 		})
 
-	case ImportNodeType:
-		n := tree.(*ImportNode)
-
-		t := c.resolveImport(n.path).(*BlockNode)
-
-		for _, statement := range t.statements {
-			err := c.Compile(statement)
-			if err != nil {
-				return err
-			}
-		}
-
 	case ReturnNodeType:
-		err := c.Compile(tree.(*ReturnNode).value)
+		err := c.compile(tree.(*ReturnNode).value)
 		if err != nil {
 			return err
 		}
@@ -494,11 +494,11 @@ func (c *Compiler) compileBinary(binary *BinaryNode) error {
 		return nil
 	}
 
-	err := c.Compile(binary.Left)
+	err := c.compile(binary.Left)
 	if err != nil {
 		return err
 	}
-	err = c.Compile(binary.Right)
+	err = c.compile(binary.Right)
 	if err != nil {
 		return err
 	}
@@ -512,6 +512,8 @@ func (c *Compiler) compileBinary(binary *BinaryNode) error {
 
 		if res.Type() == TypeString {
 			c.add(InstructionStringConcatenation)
+		} else if res.Type() == TypeList {
+			c.add(InstructionConcatLists)
 		} else {
 			c.add(InstructionAdd)
 		}
@@ -574,10 +576,14 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 
 			if contents == nil {
 				contents = sig
-			} else {
+			} else if !contents.Matches(sig) {
 				contents = &AnySignature{}
 				break
 			}
+		}
+
+		if contents == nil {
+			return nil, c.error("can't deduce content type", n)
 		}
 
 		return &ListSignature{
@@ -594,7 +600,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 			return nil, err
 		}
 
-		if l != r {
+		if !l.Matches(r) {
 			return nil, c.error(fmt.Sprintf("cannot perform binary %s on different types: %s and %s", n.BinaryOperation, l, r), n)
 		}
 
@@ -611,6 +617,10 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 				return &StringSignature{}, nil
 			case TypeNumber:
 				return &NumberSignature{}, nil
+			case TypeList:
+				return &ListSignature{
+					l.(*ListSignature).Contents,
+				}, nil
 			default:
 				return nil, c.error(fmt.Sprintf("cannot perform binary addition on type %s", l), n)
 			}
@@ -774,6 +784,7 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 			return err
 		}
 
+		log.Printf("try affirming %s matches %s", v, sig)
 		if !sig.Matches(v) {
 			return c.error(fmt.Sprintf("function cannot return a value with type %s. defined to be %s", v, sig), n.value)
 		}
@@ -857,7 +868,7 @@ func (c *Compiler) getVar(name string) {
 }
 
 func (c *Compiler) setVar(name string, value Node, declare bool) error {
-	err := c.Compile(value)
+	err := c.compile(value)
 	if err != nil {
 		return err
 	}
@@ -915,7 +926,7 @@ func (c *Compiler) isTreeConstant(tree Node) bool {
 	case BinaryNodeType:
 		return c.isTreeConstant(tree.(*BinaryNode).Left) && c.isTreeConstant(tree.(*BinaryNode).Right)
 	case BlockNodeType, ConditionalNodeType, LoopNodeType, AssignNodeType, CallNodeType, FunctionNodeType,
-		ReturnNodeType, AccessNodeType, BreakpointNodeType, ImportNodeType, ReferenceNodeType:
+		ReturnNodeType, AccessNodeType, BreakpointNodeType, ReferenceNodeType:
 		return false
 	default:
 		panic(fmt.Sprintf("unexpected node %s", tree))
@@ -984,10 +995,42 @@ func (c *Compiler) computeBinary(n *BinaryNode) (Value, error) {
 		return nil, err
 	}
 
+	if l.Type() != r.Type() {
+		return nil, c.error(fmt.Sprintf("cannot perform binary %s on different types %s and %s", n.BinaryOperation, l.Type(), r.Type()), n)
+	}
+
+	// perform type check
+	switch n.BinaryOperation {
+	case BinaryAddition:
+		if l.Type() != StringValueType && l.Type() != NumberValueType && l.Type() != ListValueType {
+			return nil, c.error(fmt.Sprintf("cannot add values of type %s", l.Type()), n)
+		}
+	case BinarySubtraction, BinaryMultiplication, BinaryDivision, BinaryLess, BinaryGreater, BinaryLessEqual, BinaryGreaterEqual:
+		if l.Type() != NumberValueType {
+			return nil, c.error(fmt.Sprintf("cannot do binary %s on non-number type %s", n.BinaryOperation, l.Type()), n)
+		}
+	case BinaryAnd, BinaryOr:
+		if l.Type() != BoolValueType {
+			return nil, c.error(fmt.Sprintf("cannot do binary %s on non-boolean type %s", n.BinaryOperation, l.Type()), n)
+		}
+	case BinaryEquality, BinaryInequality:
+		// can compare all types with themselves
+	default:
+	}
+
 	var v interface{}
 	switch n.BinaryOperation {
 	case BinaryAddition:
-		v = l.(*NumberValue).Number + r.(*NumberValue).Number
+		switch l.Type() {
+		case NumberValueType:
+			v = l.(*NumberValue).Number + r.(*NumberValue).Number
+		case StringValueType:
+			v = l.(*StringValue).Text + r.(*StringValue).Text
+		case ListValueType:
+			v = append(l.(*ListValue).Items, r.(*ListValue).Items...)
+		default:
+			return nil, c.error(fmt.Sprintf("cannot perform binary add on type %s", l.Type()), n)
+		}
 	case BinarySubtraction:
 		v = l.(*NumberValue).Number - r.(*NumberValue).Number
 	case BinaryMultiplication:
@@ -1058,20 +1101,47 @@ func (c *Compiler) warn(msg string, causer Node) {
 	c.Warnings = append(c.Warnings, c.error(msg, causer))
 }
 
-func (c *Compiler) resolveImport(path string) Node {
-	if chunk, ok := c.imports[path]; ok {
-		return chunk
+func (c *Compiler) resolveImport(path string) error {
+	// if already imported and available
+	for _, i := range c.imports {
+		if c.resolver.IsSame(path, i) {
+			return nil
+		}
 	}
 
-	// find tree
-	tree, err := c.resolver.Resolve(path)
+	src, err := c.resolver.Resolve(path)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	c.imports[path] = tree
+	l := NewLexer(src)
+	tokens, err := l.Tokenize()
+	if err != nil {
+		return err
+	}
 
-	return tree
+	parser := NewParser(src, tokens)
+	p, err := parser.Parse()
+	if err != nil {
+		return err
+	}
+
+	oldChunk := c.Chunk
+	oldSrc := c.source
+
+	c.Chunk = NewChunk([]Bytecode{}, []Value{})
+	c.source = []rune(src)
+
+	if err := c.Compile(p); err != nil {
+		return err
+	}
+
+	c.imports[path] = c.Chunk
+
+	c.Chunk = oldChunk
+	c.source = oldSrc
+
+	return nil
 }
 
 func (c *Compiler) SetImportsResolver(resolver ImportsResolver) {
@@ -1087,7 +1157,7 @@ func (c *Compiler) addU16(v uint16) {
 	c.add(Bytecode(v & 0xff)) // last 8 bits
 }
 
-// putU16 put a unsigned 16-bit value at an arbitrary position.
+// putU16 put an unsigned 16-bit value at an arbitrary position.
 // p is the position before the value
 func (c *Compiler) putU16(p Pos, v uint16) {
 	// save original position

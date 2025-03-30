@@ -1,0 +1,5 @@
+import "lib/list.ang"
+
+write(str(map([1, 2, 3], func(n: number) number {
+    return n*n
+})))

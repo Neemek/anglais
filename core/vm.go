@@ -102,6 +102,8 @@ const (
 	// items to include minus one. (value of 0 => 1 item, value of 1 => 2 items, etc.) The order is reversed compared
 	// to on the stack; the top value on the stack is the last in the list.
 	InstructionFormList
+	// InstructionConcatLists concatenate lists, producing a new list with the values of both lists. Pops two lists.
+	InstructionConcatLists
 
 	// InstructionBreakpoint for debugging purposes
 	InstructionBreakpoint
@@ -187,6 +189,8 @@ func (b Bytecode) String() string {
 		return "APPEND"
 	case InstructionAccessProperty:
 		return "ACCESS_PROPERTY"
+	case InstructionConcatLists:
+		return "CONCAT_LISTS"
 	}
 	return "UNDEFINED"
 }
@@ -373,6 +377,21 @@ var DefaultGlobals = map[string]Value{
 			return &StringValue{
 				string([]byte{b}),
 			}, nil
+		},
+		nil,
+		true,
+	},
+	"byte": &BuiltinFunctionValue{
+		"char",
+		&FunctionSignature{
+			[]TypeSignature{&StringSignature{}},
+			&NumberSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			s := args[0].(*StringValue).Text
+			b := []byte(s)[0]
+
+			return &NumberValue{float64(b)}, nil
 		},
 		nil,
 		true,
@@ -709,6 +728,14 @@ func (vm *VM) Next() bool {
 		list := vm.stack.Pop().(*ListValue)
 		list.Items = append(list.Items, value)
 		vm.stack.Push(list)
+
+	case InstructionConcatLists:
+		r := vm.stack.Pop().(*ListValue)
+		l := vm.stack.Pop().(*ListValue)
+
+		vm.stack.Push(&ListValue{
+			append(l.Items, r.Items...),
+		})
 
 	case InstructionDescend:
 		vm.descend()

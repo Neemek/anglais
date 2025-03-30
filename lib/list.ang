@@ -1,0 +1,12 @@
+
+func map(list: list[any], f: func(any)any) list[any] {
+    out := []
+
+    i := 0
+    while i < list.length() {
+        out.append(f(list.at(i)))
+        i = i + 1
+    }
+
+    return out
+}

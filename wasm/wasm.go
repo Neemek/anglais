@@ -13,32 +13,18 @@ type JsResolver struct {
 	jsResolver js.Value
 }
 
-func (r *JsResolver) Resolve(name string) (core.Node, error) {
+func (r *JsResolver) Resolve(name string) (string, error) {
 	jsv := r.jsResolver.Invoke(name)
 
 	if jsv.Type() == js.TypeUndefined {
-		return nil, errors.New("cannot find import with name " + name)
+		return "", errors.New("cannot find import with name " + name)
 	}
 
 	if jsv.Type() != js.TypeString {
-		return nil, errors.New("invalid value for source: " + jsv.String())
+		return "", errors.New("invalid value for source: " + jsv.String())
 	}
 
-	source := jsv.String()
-
-	l := core.NewLexer(source)
-	tokens, err := l.Tokenize()
-	if err != nil {
-		return nil, err
-	}
-
-	p := core.NewParser(tokens)
-	tree, err := p.Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	return tree, nil
+	return jsv.String(), nil
 }
 
 func jsError(err error) interface{} {
@@ -68,14 +54,14 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	log.Printf("got tokens: %v", tokens)
 
-	parser := core.NewParser(tokens)
+	parser := core.NewParser(source, tokens)
 
 	tree, err := parser.Parse()
 
 	if err != nil {
-		var e core.ParsingError
+		var e core.FormatedError
 		if errors.As(err, &e) {
-			errorHandler.Invoke(e.Format([]rune(source)))
+			errorHandler.Invoke(e.Format())
 			return nil
 		}
 		errorHandler.Invoke(err.Error())
@@ -86,7 +72,7 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	compiler := core.NewCompiler([]rune(source))
 
-	log.Printf("Set imports resolver", tree.String())
+	log.Println("Set imports resolver")
 
 	compiler.SetImportsResolver(&JsResolver{
 		resolver,
@@ -118,8 +104,8 @@ func run(_ js.Value, args []js.Value) interface{} {
 	vm.SetGlobal("write", &core.BuiltinFunctionValue{
 		Name: "write",
 		Signature: &core.FunctionSignature{
-			[]core.TypeSignature{&core.StringSignature{}},
-			&core.NilSignature{},
+			In:  []core.TypeSignature{&core.StringSignature{}},
+			Out: &core.NilSignature{},
 		},
 		F: func(vm *core.VM, this core.Value, args []core.Value) (core.Value, error) {
 			s := args[0].String()
