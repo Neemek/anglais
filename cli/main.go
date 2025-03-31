@@ -42,12 +42,12 @@ func (r *WorkingDirectoryResolver) IsSame(a, b string) bool {
 	return apath == bpath
 }
 
-func makeChunk(ctx *Context, filepath string, ignoreWarnings bool) (*core.Chunk, error) {
+func makeChunk(ctx *Context, fpath string, ignoreWarnings bool) (*core.Chunk, error) {
 	if ctx.Debug {
 		log.Println("Reading file")
 	}
 
-	f, err := os.ReadFile(filepath)
+	f, err := os.ReadFile(fpath)
 
 	if err != nil {
 		return nil, err
@@ -83,7 +83,12 @@ func makeChunk(ctx *Context, filepath string, ignoreWarnings bool) (*core.Chunk,
 		log.Println("Initialized parser")
 	}
 
-	tree, err := p.Parse()
+	pathat, err := filepath.Abs(fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := p.Parse(pathat)
 
 	if ctx.Debug {
 		log.Printf("Parsed tree, meaning:\n%s", tree)
@@ -104,7 +109,7 @@ func makeChunk(ctx *Context, filepath string, ignoreWarnings bool) (*core.Chunk,
 		log.Println("Setting imports resolver")
 	}
 
-	dir, _ := path.Split(filepath)
+	dir, _ := path.Split(fpath)
 	c.SetImportsResolver(&WorkingDirectoryResolver{
 		dir,
 	})

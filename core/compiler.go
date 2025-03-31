@@ -1,8 +1,8 @@
 package core
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -11,11 +11,12 @@ type Compiler struct {
 	ip    Pos
 	scope Pos
 
-	imports     []string
-	importStack *Stack[string]
-	resolver    ImportsResolver
-	source      []rune
-	Warnings    []CompilerError
+	imports   []string
+	fileStack *Stack[string]
+	resolver  ImportsResolver
+
+	source   []rune
+	Warnings []CompilerError
 
 	stack *Stack[LocalVariable]
 }
@@ -35,6 +36,7 @@ type CompilerError struct {
 	Description string
 	Causer      Node
 	Source      []rune
+	Trace       []string
 }
 
 func (e CompilerError) Error() string {
@@ -101,6 +103,14 @@ func (e CompilerError) Format() string {
 		lineStart = lineEnd
 		line++
 	}
+
+	b.WriteString("\nsource trace:")
+	// print import stack trace
+	for i := len(e.Trace) - 1; i >= 0; i-- {
+		p := e.Trace[i]
+		b.WriteString(fmt.Sprintf("\n[%d] %s", i+1, p))
+	}
+
 	return b.String()
 }
 
@@ -146,13 +156,22 @@ func (c *Compiler) addConstant(value Value) {
 }
 
 func (c *Compiler) Compile(p *Program) error {
+	c.fileStack.Push(p.Path)
+	defer c.fileStack.Pop()
+
 	for _, i := range p.Imports {
 		if err := c.resolveImport(i); err != nil {
 			return err
 		}
 	}
 
-	return c.compile(p.Block)
+	for _, s := range p.Block.statements {
+		if err := c.compile(s); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Compiler) compile(tree Node) error {
@@ -784,7 +803,6 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 			return err
 		}
 
-		log.Printf("try affirming %s matches %s", v, sig)
 		if !sig.Matches(v) {
 			return c.error(fmt.Sprintf("function cannot return a value with type %s. defined to be %s", v, sig), n.value)
 		}
@@ -1094,6 +1112,7 @@ func (c *Compiler) error(msg string, causer Node) CompilerError {
 		msg,
 		causer,
 		c.source,
+		c.fileStack.items[0:c.fileStack.Current],
 	}
 }
 
@@ -1109,6 +1128,13 @@ func (c *Compiler) resolveImport(path string) error {
 		}
 	}
 
+	// stop recursive imports
+	for i := c.fileStack.Current - 1; i >= 0; i-- {
+		if c.resolver.IsSame(path, c.fileStack.items[i]) {
+			return errors.New("recursive imports")
+		}
+	}
+
 	src, err := c.resolver.Resolve(path)
 	if err != nil {
 		return err
@@ -1121,24 +1147,19 @@ func (c *Compiler) resolveImport(path string) error {
 	}
 
 	parser := NewParser(src, tokens)
-	p, err := parser.Parse()
+	p, err := parser.Parse(path)
 	if err != nil {
 		return err
 	}
 
-	oldChunk := c.Chunk
 	oldSrc := c.source
 
-	c.Chunk = NewChunk([]Bytecode{}, []Value{})
+	// update source for more descriptive errors
 	c.source = []rune(src)
-
 	if err := c.Compile(p); err != nil {
 		return err
 	}
 
-	c.imports[path] = c.Chunk
-
-	c.Chunk = oldChunk
 	c.source = oldSrc
 
 	return nil

@@ -87,6 +87,7 @@ func NewParser(source string, tokens []Token) *Parser {
 type Program struct {
 	Imports []string
 	Block   *BlockNode
+	Path    string
 }
 
 func (p *Program) String() string {
@@ -104,7 +105,7 @@ func (p *Program) String() string {
 	return builder.String()
 }
 
-func (p *Parser) Parse() (*Program, error) {
+func (p *Parser) Parse(path string) (*Program, error) {
 	imports := make([]string, 0)
 
 	// top level statements
@@ -138,6 +139,7 @@ func (p *Parser) Parse() (*Program, error) {
 			0,
 			p.curr.Start + p.curr.Length,
 		},
+		path,
 	}, nil
 }
 
