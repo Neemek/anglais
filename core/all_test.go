@@ -130,13 +130,13 @@ func TestAll(t *testing.T) {
 			}
 
 			t.Log("Initializing parser")
-			p := NewParser(tokens)
+			p := NewParser(tc.src, tokens)
 
 			t.Log("Parsing tokens")
-			tree, err := p.Parse()
+			tree, err := p.Parse(tc.src)
 
 			if err != nil {
-				print(err.(ParsingError).Format([]rune(tc.src)))
+				print(err.(ParsingError).Format())
 				t.Fatalf("parser had an error")
 			}
 
@@ -144,7 +144,7 @@ func TestAll(t *testing.T) {
 			c := NewCompiler([]rune(tc.src))
 
 			t.Log("Compiling parse tree")
-			err = c.compile(tree)
+			err = c.Compile(tree)
 			if err != nil {
 				t.Fatalf("Compiler had an error: %s", err)
 			}
@@ -173,11 +173,11 @@ func BenchmarkAll(b *testing.B) {
 				l := NewLexer(tc.src)
 				tokens, _ := l.Tokenize()
 
-				p := NewParser(tokens)
-				tree, _ := p.Parse()
+				p := NewParser(tc.src, tokens)
+				tree, _ := p.Parse(tc.src)
 
 				c := NewCompiler([]rune(tc.src))
-				_ = c.compile(tree)
+				_ = c.Compile(tree)
 
 				vm := NewVM(c.Chunk, 256, 256)
 

@@ -10,7 +10,7 @@ import (
 func TestNewParser(t *testing.T) {
 	tokens := make([]Token, 0)
 
-	p := NewParser(tokens)
+	p := NewParser("", tokens)
 
 	if p == nil {
 		t.Fatal("parser should not be nil")
@@ -34,7 +34,7 @@ func TestNewParser(t *testing.T) {
 func BenchmarkNewParser(b *testing.B) {
 	tokens := make([]Token, 0)
 	for i := 0; i < b.N; i++ {
-		_ = NewParser(tokens)
+		_ = NewParser("", tokens)
 	}
 }
 
@@ -908,17 +908,17 @@ func TestParser_Parse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Logf("Initializing parser")
-			p := NewParser(data.tokens)
+			p := NewParser("", data.tokens)
 
 			t.Logf("Parsing main")
-			tree, err := p.Parse()
+			tree, err := p.Parse("")
 
 			if err != nil {
-				t.Fatalf("Unexpected error(s): %s", err.(ParsingError).Format([]rune(SerializeTokens(data.tokens))))
+				t.Fatalf("Unexpected error(s): %s", err.(ParsingError).Format())
 			}
 
 			t.Logf("Checking parsed tree")
-			NodeEquality(t, tree, data.tree)
+			NodeEquality(t, tree.Block, data.tree)
 		})
 	}
 }
@@ -929,9 +929,9 @@ func BenchmarkParser_Parse(b *testing.B) {
 	for name, data := range tokenData {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				p := NewParser(data.tokens)
+				p := NewParser("", data.tokens)
 
-				_, _ = p.Parse()
+				_, _ = p.Parse("")
 			}
 		})
 	}

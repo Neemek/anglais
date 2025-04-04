@@ -215,7 +215,7 @@ func (c *Compiler) compile(tree Node) error {
 		}
 
 	case ReferenceNodeType:
-		c.getVar(tree.(*ReferenceNode).name)
+		c.addGetVar(tree.(*ReferenceNode).name)
 
 	case BinaryNodeType:
 		err := c.compileBinary(tree.(*BinaryNode))
@@ -275,7 +275,7 @@ func (c *Compiler) compile(tree Node) error {
 			return err
 		}
 		if sig.Type() != TypeBoolean {
-			return c.error(fmt.Sprintf("condition cannot give non-boolean type %s", sig), n.condition)
+			return c.error(fmt.Sprintf("conditional requires boolean; cannot use non-boolean type %s", sig), n.condition)
 		}
 
 		// the stack should have whether the condition was truthful
@@ -365,7 +365,7 @@ func (c *Compiler) compile(tree Node) error {
 				return c.error(fmt.Sprintf("%s is already declared in this scope", n.name), n)
 			}
 
-			err := c.setVar(n.name, n.value, n.declare)
+			err := c.addSetVar(n.name, n.value, n.declare)
 			if err != nil {
 				return err
 			}
@@ -871,7 +871,7 @@ func (c *Compiler) isVarDeclaredHere(name string) bool {
 	return false
 }
 
-func (c *Compiler) getVar(name string) {
+func (c *Compiler) addGetVar(name string) {
 	if c.isGlobal(name) {
 		c.add(InstructionGetGlobal)
 		c.addConstant(&StringValue{
@@ -885,7 +885,7 @@ func (c *Compiler) getVar(name string) {
 	}
 }
 
-func (c *Compiler) setVar(name string, value Node, declare bool) error {
+func (c *Compiler) addSetVar(name string, value Node, declare bool) error {
 	err := c.compile(value)
 	if err != nil {
 		return err

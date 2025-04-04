@@ -129,7 +129,9 @@ func (p *Parser) Parse(path string) (*Program, error) {
 			return nil, err
 		}
 
-		statements = append(statements, b)
+		if b != nil {
+			statements = append(statements, b)
+		}
 	}
 
 	return &Program{
@@ -774,16 +776,23 @@ func (p *Parser) statement() (Node, error) {
 
 		return &BreakpointNode{}, nil
 
+	case TokenImport:
+		defer p.advance()
+		return nil, p.error("import statements must be top-level", p.curr)
+
 	default:
-		err := p.error("invalid statement", p.curr)
-		p.advance()
-		return nil, err
+		defer p.advance()
+		return nil, p.error("invalid statement", p.curr)
 	}
 }
 
 func (p *Parser) block(canBeStatement bool) (Node, error) {
 	if canBeStatement {
 		if !p.accept(TokenOpenBrace) {
+			if p.curr.Type == TokenEOF {
+				return nil, nil
+			}
+
 			return p.statement()
 		}
 	} else {

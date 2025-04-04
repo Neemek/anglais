@@ -13,6 +13,10 @@ type JsResolver struct {
 	jsResolver js.Value
 }
 
+func (r *JsResolver) IsSame(a, b string) bool {
+	return a == b
+}
+
 func (r *JsResolver) Resolve(name string) (string, error) {
 	jsv := r.jsResolver.Invoke(name)
 
@@ -56,7 +60,7 @@ func run(_ js.Value, args []js.Value) interface{} {
 
 	parser := core.NewParser(source, tokens)
 
-	tree, err := parser.Parse()
+	tree, err := parser.Parse(source)
 
 	if err != nil {
 		var e core.FormatedError
