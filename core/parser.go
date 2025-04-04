@@ -116,7 +116,7 @@ func (p *Parser) Parse(path string) (*Program, error) {
 
 	for int(p.pos) < len(p.tokens) && p.curr.Type != TokenEOF {
 		if p.accept(TokenImport) {
-			if err := p.expect(TokenString); err != nil {
+			if err := p.expect(TokenString, "import requires a path/name to import"); err != nil {
 				return nil, err
 			}
 
@@ -159,9 +159,9 @@ func (p *Parser) accept(tokenType TokenType) bool {
 	return false
 }
 
-func (p *Parser) expect(tokenType TokenType) error {
+func (p *Parser) expect(tokenType TokenType, reason string) error {
 	if !p.accept(tokenType) {
-		return p.error("Expected token "+tokenType.String()+", got "+p.curr.Type.String(), p.curr)
+		return p.error(fmt.Sprintf("Expected token %s, got %s; %s", tokenType, p.curr.Type, reason), p.curr)
 	}
 	return nil
 }
@@ -259,7 +259,7 @@ func (p *Parser) factor() (Node, error) {
 		var values []Node
 		for !p.accept(TokenCloseBracket) {
 			if len(values) > 0 {
-				if err := p.expect(TokenComma); err != nil {
+				if err := p.expect(TokenComma, "list values must be separated by a comma"); err != nil {
 					return nil, err
 				}
 			}
@@ -379,7 +379,7 @@ func (p *Parser) factor() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.expect(TokenCloseParenthesis); err != nil {
+		if err := p.expect(TokenCloseParenthesis, "an opened parenthesis must be closed"); err != nil {
 			return nil, err
 		}
 
@@ -402,7 +402,7 @@ func (p *Parser) prop() (Node, error) {
 
 	// parse chains of prop-getting ( "".split().join().length.round() )
 	for p.accept(TokenDot) {
-		if err := p.expect(TokenName); err != nil {
+		if err := p.expect(TokenName, "property must be a name"); err != nil {
 			return nil, err
 		}
 		property := (*p.prev).Lexeme
@@ -627,7 +627,7 @@ func (p *Parser) statement() (Node, error) {
 
 			// parse chains of prop-getting ( "".split().join().length.round() )
 			for p.accept(TokenDot) {
-				if err := p.expect(TokenName); err != nil {
+				if err := p.expect(TokenName, "property must be name"); err != nil {
 					return nil, err
 				}
 				property := (*p.prev).Lexeme
@@ -697,7 +697,7 @@ func (p *Parser) statement() (Node, error) {
 
 		funcStart := p.prev.Start
 
-		if err := p.expect(TokenName); err != nil {
+		if err := p.expect(TokenName, "function must have a name"); err != nil {
 			return nil, err
 		}
 		name := p.prev.Lexeme
@@ -796,7 +796,7 @@ func (p *Parser) block(canBeStatement bool) (Node, error) {
 			return p.statement()
 		}
 	} else {
-		if err := p.expect(TokenOpenBrace); err != nil {
+		if err := p.expect(TokenOpenBrace, "a block is required"); err != nil {
 			return nil, err
 		}
 	}
@@ -825,7 +825,7 @@ func (p *Parser) block(canBeStatement bool) (Node, error) {
 func (p *Parser) parseArgs() ([]Node, error) {
 	args := make([]Node, 0)
 
-	if err := p.expect(TokenOpenParenthesis); err != nil {
+	if err := p.expect(TokenOpenParenthesis, "arguments must be contained in parenthesis"); err != nil {
 		return nil, err
 	}
 
@@ -836,7 +836,7 @@ func (p *Parser) parseArgs() ([]Node, error) {
 		}
 		args = append(args, c)
 		for !p.accept(TokenCloseParenthesis) {
-			if err := p.expect(TokenComma); err != nil {
+			if err := p.expect(TokenComma, "arguments must be separated by comma"); err != nil {
 				return nil, err
 			}
 			c, err = p.condition()
@@ -852,14 +852,14 @@ func (p *Parser) parseArgs() ([]Node, error) {
 
 // parseParams parse parameters and parentheses
 func (p *Parser) parseParams() ([]FunctionParameter, error) {
-	if err := p.expect(TokenOpenParenthesis); err != nil {
+	if err := p.expect(TokenOpenParenthesis, "parameters must be in parentheses"); err != nil {
 		return nil, err
 	}
 	params := make([]FunctionParameter, 0)
 
 	if p.accept(TokenName) {
 		name := (*p.prev).Lexeme
-		if err := p.expect(TokenColon); err != nil {
+		if err := p.expect(TokenColon, "parameters must have a type separated by a colon"); err != nil {
 			return nil, err
 		}
 
@@ -873,14 +873,14 @@ func (p *Parser) parseParams() ([]FunctionParameter, error) {
 			t,
 		})
 		for !p.accept(TokenCloseParenthesis) {
-			if err := p.expect(TokenComma); err != nil {
+			if err := p.expect(TokenComma, "parameters must be separated by comma"); err != nil {
 				return nil, err
 			}
-			if err := p.expect(TokenName); err != nil {
+			if err := p.expect(TokenName, "parameters must have a name (cannot have trailing comma)"); err != nil {
 				return nil, err
 			}
 			name = (*p.prev).Lexeme
-			if err := p.expect(TokenColon); err != nil {
+			if err := p.expect(TokenColon, "parameters must have a type separated by a colon"); err != nil {
 				return nil, err
 			}
 
@@ -895,7 +895,7 @@ func (p *Parser) parseParams() ([]FunctionParameter, error) {
 			})
 		}
 	} else {
-		if err := p.expect(TokenCloseParenthesis); err != nil {
+		if err := p.expect(TokenCloseParenthesis, "must close parameter list"); err != nil {
 			return nil, err
 		}
 	}
@@ -907,7 +907,7 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 	var s TypeSignature
 
 	if p.accept(TokenFunc) {
-		if err := p.expect(TokenOpenParenthesis); err != nil {
+		if err := p.expect(TokenOpenParenthesis, "func signature must have parentheses for parameters"); err != nil {
 			return nil, err
 		}
 
@@ -915,7 +915,7 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 
 		for !p.accept(TokenCloseParenthesis) {
 			if len(in) > 0 {
-				if err := p.expect(TokenComma); err != nil {
+				if err := p.expect(TokenComma, "parameter types must be separated by a comma"); err != nil {
 					return nil, err
 				}
 			}
@@ -939,7 +939,7 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 			out,
 		}
 	} else {
-		if err := p.expect(TokenName); err != nil {
+		if err := p.expect(TokenName, "type must be a name"); err != nil {
 			return nil, err
 		}
 		name := (*p.prev).Lexeme
@@ -952,7 +952,7 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 		case "boolean":
 			s = &BooleanSignature{}
 		case "list":
-			if err := p.expect(TokenOpenBracket); err != nil {
+			if err := p.expect(TokenOpenBracket, "list must have content typed"); err != nil {
 				return nil, err
 			}
 
@@ -961,7 +961,7 @@ func (p *Parser) parseSignature() (TypeSignature, error) {
 				return nil, err
 			}
 
-			if err := p.expect(TokenCloseBracket); err != nil {
+			if err := p.expect(TokenCloseBracket, "list must close parameter list"); err != nil {
 				return nil, err
 			}
 
