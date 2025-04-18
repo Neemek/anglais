@@ -186,7 +186,7 @@ func (v *ObjectValue) String() string {
 			out += ", "
 		}
 
-		out += fmt.Sprintf("%q=%s", key, value.String())
+		out += fmt.Sprintf("%q=%s", key, value.DebugString())
 	}
 	out += "}"
 

@@ -25,16 +25,10 @@ func TestNewStack(t *testing.T) {
 
 	s := NewStack[any](Pos(size))
 
-	if s.Size != Pos(size) {
-		t.Errorf("Stack size (%d) does not match expected size (%d)", s.Size, size)
+	if s.Capacity != Pos(size) {
+		t.Errorf("Stack size (%d) does not match expected size (%d)", s.Capacity, size)
 	} else {
-		t.Logf("Stack size is expected size (%d)", s.Size)
-	}
-
-	if len(s.items) != size {
-		t.Errorf("internal items slice size (%d) does not match expected size (%d)", len(s.items), size)
-	} else {
-		t.Logf("internal items slice size is as expected (%d)", len(s.items))
+		t.Logf("Stack size is expected size (%d)", s.Capacity)
 	}
 
 	if s.Current != 0 {

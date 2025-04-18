@@ -826,6 +826,10 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 	return nil, errors.New(fmt.Sprintf("value is not a function (%s)", v.DebugString()))
 }
 
+func (vm *VM) SetChunk(c *Chunk) {
+	vm.chunk = c
+}
+
 func (vm *VM) TryNextByte() (Bytecode, error) {
 	if !vm.HasNext() {
 		return 0, errors.New("there are no more instructions")

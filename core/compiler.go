@@ -157,7 +157,6 @@ func (c *Compiler) addConstant(value Value) {
 
 func (c *Compiler) Compile(p *Program) error {
 	c.fileStack.Push(p.Path)
-	defer c.fileStack.Pop()
 
 	for _, i := range p.Imports {
 		if err := c.resolveImport(i); err != nil {
@@ -170,6 +169,8 @@ func (c *Compiler) Compile(p *Program) error {
 			return err
 		}
 	}
+
+	c.fileStack.Pop()
 
 	return nil
 }
@@ -451,7 +452,8 @@ func (c *Compiler) compile(tree Node) error {
 			c.registerVar(p.Name, p.Signature)
 		}
 
-		if err := c.affirmReturnSignature(n.logic, n.yield); err != nil {
+		err = c.affirmReturnSignature(n.logic, n.yield)
+		if err != nil {
 			return err
 		}
 
@@ -585,7 +587,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 	case ListNodeType:
 		n := tree.(*ListNode)
 
-		var contents TypeSignature
+		contents := n.content
 		// check for contents type
 		for _, v := range n.items {
 			sig, err := c.deduceSignature(v)
@@ -596,8 +598,7 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 			if contents == nil {
 				contents = sig
 			} else if !contents.Matches(sig) {
-				contents = &AnySignature{}
-				break
+				return nil, c.error(fmt.Sprintf("non-conforming item type"), v)
 			}
 		}
 
@@ -804,7 +805,7 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 		}
 
 		if !sig.Matches(v) {
-			return c.error(fmt.Sprintf("function cannot return a value with type %s. defined to be %s", v, sig), n.value)
+			return c.error(fmt.Sprintf("function cannot return a value with type %s. defined to be %s", v, sig), n)
 		}
 
 	case ConditionalNodeType:
@@ -842,7 +843,7 @@ func (c *Compiler) affirmReturnSignature(tree Node, sig TypeSignature) error {
 			}
 
 			if !sig.Matches(prev) {
-				return c.error(fmt.Sprintf("cannot assign value of type %s to variable of type %s", prev, sig), n.value)
+				return c.error(fmt.Sprintf("cannot assign value of type %s to variable %s of type %s", sig, n.name, prev), n.value)
 			}
 
 			return nil
@@ -891,14 +892,24 @@ func (c *Compiler) addSetVar(name string, value Node, declare bool) error {
 		return err
 	}
 
+	t, err := c.deduceSignature(value)
+	if err != nil {
+		return err
+	}
+
 	if declare {
 		c.add(InstructionDeclareLocal)
-		t, err := c.deduceSignature(value)
+		c.registerVar(name, t)
+	} else {
+		vt, err := c.getVarSignature(name, value)
 		if err != nil {
 			return err
 		}
-		c.registerVar(name, t)
-	} else {
+
+		if !vt.Matches(t) {
+			return c.error(fmt.Sprintf("cannot assign value of type %s to variable %s of type %s", t, name, vt), value)
+		}
+
 		c.add(InstructionSetLocal)
 	}
 
@@ -1090,10 +1101,7 @@ func (c *Compiler) ascend() {
 
 func (c *Compiler) addAscend() {
 	c.ascend()
-
-	if c.scope != 0 {
-		c.add(InstructionAscend)
-	}
+	c.add(InstructionAscend)
 }
 
 func (c *Compiler) descend() {
@@ -1102,9 +1110,7 @@ func (c *Compiler) descend() {
 
 func (c *Compiler) addDescend() {
 	c.descend()
-	if c.scope != 1 {
-		c.add(InstructionDescend)
-	}
+	c.add(InstructionDescend)
 }
 
 func (c *Compiler) error(msg string, causer Node) CompilerError {
@@ -1167,6 +1173,10 @@ func (c *Compiler) resolveImport(path string) error {
 
 func (c *Compiler) SetImportsResolver(resolver ImportsResolver) {
 	c.resolver = resolver
+}
+
+func (c *Compiler) SetSource(src string) {
+	c.source = []rune(src)
 }
 
 func (c *Compiler) advance(amount Pos) {

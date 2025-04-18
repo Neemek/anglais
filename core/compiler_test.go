@@ -28,58 +28,80 @@ func BenchmarkNewCompiler(b *testing.B) {
 }
 
 type CompileTestData struct {
-	tree          Node
+	program       *Program
 	expectedStack []Value
 }
 
 func GetCompileTestData() map[string]CompileTestData {
 	return map[string]CompileTestData{
 		"constant_string": {
-			&StringNode{
-				"Hello world!",
-				"\"Hello world!\"",
-				0, 0,
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&StringNode{
+								"Hello world!",
+								"\"Hello world!\"",
+								0, 0,
+							},
+							true,
+							0, 0,
+						},
+					},
+					0, 0,
+				},
+				"",
 			},
 			[]Value{
-				&StringValue{"Hello world!"},
+				&VariableValue{
+					"a",
+					&StringValue{"Hello world!"},
+					0,
+				},
 			},
 		},
 		"conditional_false": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"a",
-						&NumberNode{
-							0,
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&NumberNode{
+								0,
+								0, 0,
+							},
+							true,
 							0, 0,
 						},
-						true,
-						0, 0,
-					},
-					&ConditionalNode{
-						&BooleanNode{
-							false,
-							0, 0,
-						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										1,
+						&ConditionalNode{
+							&BooleanNode{
+								false,
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											1,
+											0, 0,
+										},
+										false,
 										0, 0,
 									},
-									false,
-									0, 0,
 								},
+								0, 0,
 							},
+							nil,
 							0, 0,
 						},
-						nil,
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -90,41 +112,45 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"conditional_true": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"a",
-						&NumberNode{
-							0,
-							0, 0,
-						},
-						true,
-						0, 0,
-					},
-					&ConditionalNode{
-						&BooleanNode{
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&NumberNode{
+								0,
+								0, 0,
+							},
 							true,
 							0, 0,
 						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										1,
+						&ConditionalNode{
+							&BooleanNode{
+								true,
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											1,
+											0, 0,
+										},
+										false,
 										0, 0,
 									},
-									false,
-									0, 0,
 								},
+								0, 0,
 							},
+							nil,
 							0, 0,
 						},
-						nil,
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -135,54 +161,58 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"conditional_else_false": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"a",
-						&NumberNode{
-							0,
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&NumberNode{
+								0,
+								0, 0,
+							},
+							true,
 							0, 0,
 						},
-						true,
-						0, 0,
-					},
-					&ConditionalNode{
-						&BooleanNode{
-							false,
-							0, 0,
-						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										1,
+						&ConditionalNode{
+							&BooleanNode{
+								false,
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											1,
+											0, 0,
+										},
+										false,
 										0, 0,
 									},
-									false,
-									0, 0,
 								},
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											2,
+											0, 0,
+										},
+										false,
+										0, 0,
+									},
+								},
+								0, 0,
 							},
 							0, 0,
 						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										2,
-										0, 0,
-									},
-									false,
-									0, 0,
-								},
-							},
-							0, 0,
-						},
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -193,54 +223,58 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"conditional_else_true": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"a",
-						&NumberNode{
-							0,
-							0, 0,
-						},
-						true,
-						0, 0,
-					},
-					&ConditionalNode{
-						&BooleanNode{
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&NumberNode{
+								0,
+								0, 0,
+							},
 							true,
 							0, 0,
 						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										1,
+						&ConditionalNode{
+							&BooleanNode{
+								true,
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											1,
+											0, 0,
+										},
+										false,
 										0, 0,
 									},
-									false,
-									0, 0,
 								},
+								0, 0,
+							},
+							&BlockNode{
+								[]Node{
+									&AssignNode{
+										"a",
+										&NumberNode{
+											2,
+											0, 0,
+										},
+										false,
+										0, 0,
+									},
+								},
+								0, 0,
 							},
 							0, 0,
 						},
-						&BlockNode{
-							[]Node{
-								&AssignNode{
-									"a",
-									&NumberNode{
-										2,
-										0, 0,
-									},
-									false,
-									0, 0,
-								},
-							},
-							0, 0,
-						},
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -251,67 +285,89 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"addition": {
-			&BinaryNode{
-				BinaryAddition,
-				&NumberNode{
-					1,
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
+							"a",
+							&BinaryNode{
+								BinaryAddition,
+								&NumberNode{
+									1,
+									0, 0,
+								},
+								&NumberNode{
+									2,
+									0, 0,
+								},
+								0, 0,
+							},
+							true,
+							0, 0,
+						},
+					},
 					0, 0,
 				},
-				&NumberNode{
-					2,
-					0, 0,
-				},
-				0, 0,
+				"",
 			},
 			[]Value{
-				&NumberValue{3},
+				&VariableValue{
+					"a",
+					&NumberValue{3},
+					0,
+				},
 			},
 		},
 		"sum_function": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"sum",
-						&FunctionNode{
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
 							"sum",
-							[]FunctionParameter{
-								{
-									"a",
-									&NumberSignature{},
+							&FunctionNode{
+								"sum",
+								[]FunctionParameter{
+									{
+										"a",
+										&NumberSignature{},
+									},
+									{
+										"b",
+										&NumberSignature{},
+									},
 								},
-								{
-									"b",
-									&NumberSignature{},
-								},
-							},
-							&NumberSignature{},
-							&BlockNode{
-								[]Node{
-									&ReturnNode{
-										&BinaryNode{
-											BinaryAddition,
-											&ReferenceNode{
-												"a",
-												0, 0,
-											},
-											&ReferenceNode{
-												"b",
+								&NumberSignature{},
+								&BlockNode{
+									[]Node{
+										&ReturnNode{
+											&BinaryNode{
+												BinaryAddition,
+												&ReferenceNode{
+													"a",
+													0, 0,
+												},
+												&ReferenceNode{
+													"b",
+													0, 0,
+												},
 												0, 0,
 											},
 											0, 0,
 										},
-										0, 0,
 									},
+									0, 0,
 								},
 								0, 0,
 							},
+							true,
 							0, 0,
 						},
-						true,
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -350,51 +406,55 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"remove_func_vars": {
-			&BlockNode{
-				[]Node{
-					&AssignNode{
-						"a",
-						&FunctionNode{
+			&Program{
+				[]string{},
+				&BlockNode{
+					[]Node{
+						&AssignNode{
 							"a",
-							[]FunctionParameter{},
-							&NumberSignature{},
-							&BlockNode{
-								[]Node{
-									&AssignNode{
-										"b",
-										&NumberNode{
-											1,
-											0, 0,
-										},
-										true,
-										0, 0,
-									},
-									&ReturnNode{
-										&ReferenceNode{
+							&FunctionNode{
+								"a",
+								[]FunctionParameter{},
+								&NumberSignature{},
+								&BlockNode{
+									[]Node{
+										&AssignNode{
 											"b",
+											&NumberNode{
+												1,
+												0, 0,
+											},
+											true,
 											0, 0,
 										},
-										0, 0,
+										&ReturnNode{
+											&ReferenceNode{
+												"b",
+												0, 0,
+											},
+											0, 0,
+										},
 									},
+									0, 0,
 								},
 								0, 0,
 							},
+							true,
 							0, 0,
 						},
-						true,
-						0, 0,
-					},
-					&CallNode{
-						&ReferenceNode{
-							"a",
+						&CallNode{
+							&ReferenceNode{
+								"a",
+								0, 0,
+							},
+							[]Node{},
+							false,
 							0, 0,
 						},
-						[]Node{},
-						false,
-						0, 0,
 					},
+					0, 0,
 				},
-				0, 0,
+				"",
 			},
 			[]Value{
 				&VariableValue{
@@ -423,29 +483,33 @@ func GetCompileTestData() map[string]CompileTestData {
 			},
 		},
 		"two_lists": {
-			tree: &BlockNode{
-				statements: []Node{
-					&AssignNode{
-						name: "a",
-						value: &ListNode{
-							items: []Node{
-								&NumberNode{value: 1},
-								&NumberNode{value: 2},
+			program: &Program{
+				[]string{},
+				&BlockNode{
+					statements: []Node{
+						&AssignNode{
+							name: "a",
+							value: &ListNode{
+								items: []Node{
+									&NumberNode{value: 1},
+									&NumberNode{value: 2},
+								},
 							},
+							declare: true,
 						},
-						declare: true,
-					},
-					&AssignNode{
-						name: "b",
-						value: &ListNode{
-							items: []Node{
-								&StringNode{value: "Hello"},
-								&StringNode{value: "world"},
+						&AssignNode{
+							name: "b",
+							value: &ListNode{
+								items: []Node{
+									&StringNode{value: "Hello"},
+									&StringNode{value: "world"},
+								},
 							},
+							declare: true,
 						},
-						declare: true,
 					},
 				},
+				"",
 			},
 			expectedStack: []Value{
 				&VariableValue{
@@ -499,10 +563,10 @@ func TestCompile(t *testing.T) {
 	for name, testCase := range data {
 		t.Run(name, func(t *testing.T) {
 			t.Log("Initializing compiler")
-			c := NewCompiler([]rune(testCase.tree.String()))
+			c := NewCompiler([]rune(testCase.program.String()))
 
 			t.Log("Compiling node tree")
-			err := c.compile(testCase.tree)
+			err := c.Compile(testCase.program)
 			if err != nil {
 				t.Fatalf("Compiling failed: %v", err)
 			}
@@ -529,7 +593,7 @@ func BenchmarkCompile(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				c := NewCompiler([]rune{})
-				_ = c.compile(testCase.tree)
+				_ = c.Compile(testCase.program)
 			}
 		})
 	}
@@ -556,24 +620,9 @@ func TestCompiler_CleanStack(t *testing.T) {
 	cases := GetCompileTestData()
 
 	for name, tc := range cases {
-		switch tc.tree.Type() {
-		// skip all expected unclean nodes
-		case StringNodeType, NumberNodeType, ReferenceNodeType, BooleanNodeType, NilNodeType, BinaryNodeType, ReturnNodeType:
-			continue
-
-		case CallNodeType:
-			if tc.tree.(*CallNode).keep {
-				// if we know it should be unclean, skip it
-				continue
-			}
-
-		// clean statements
-		default:
-		}
-
 		t.Run(name, func(t *testing.T) {
-			c := NewCompiler([]rune(tc.tree.String()))
-			err := c.compile(tc.tree)
+			c := NewCompiler([]rune(tc.program.String()))
+			err := c.Compile(tc.program)
 			if err != nil {
 				t.Fatalf("Compiling failed: %v", err)
 			}

@@ -76,13 +76,13 @@ func TestNewVM(t *testing.T) {
 	}
 
 	// should have given stack size
-	if vm.stack.Size != stackSize {
-		t.Errorf("vm.stack.Size = %d, want %d", vm.stack.Size, stackSize)
+	if vm.stack.Capacity != stackSize {
+		t.Errorf("vm.stack.Capacity = %d, want %d", vm.stack.Capacity, stackSize)
 	}
 
 	// should have given call stack size
-	if vm.call.Size != callstackSize {
-		t.Errorf("vm.call.Size = %d, want %d", vm.call.Size, callstackSize)
+	if vm.call.Capacity != callstackSize {
+		t.Errorf("vm.call.Capacity = %d, want %d", vm.call.Capacity, callstackSize)
 	}
 }
 

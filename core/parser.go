@@ -253,8 +253,20 @@ func (p *Parser) factor() (Node, error) {
 
 	case TokenOpenBracket:
 		p.advance()
-
 		start := p.prev.Start
+
+		if p.accept(TokenCloseBracket) {
+			s, err := p.parseSignature()
+			if err != nil {
+				return nil, err
+			}
+			return &ListNode{
+				[]Node{},
+				s,
+				start,
+				p.prev.Start + p.prev.Length,
+			}, nil
+		}
 
 		var values []Node
 		for !p.accept(TokenCloseBracket) {
@@ -275,6 +287,7 @@ func (p *Parser) factor() (Node, error) {
 
 		return &ListNode{
 			values,
+			nil,
 			start,
 			p.prev.Start + p.prev.Length,
 		}, nil
@@ -386,9 +399,7 @@ func (p *Parser) factor() (Node, error) {
 		return v, nil
 
 	default:
-		err := p.error("invalid factor", p.curr)
-		p.advance()
-		return nil, err
+		return nil, p.error("invalid factor", p.curr)
 	}
 }
 
@@ -688,9 +699,9 @@ func (p *Parser) statement() (Node, error) {
 				start,
 				p.prev.Start + p.prev.Length,
 			}, nil
-		} else {
-			return p.condition()
 		}
+
+		return nil, p.error("invalid statement", p.curr)
 
 	case TokenFunc:
 		p.advance()

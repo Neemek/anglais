@@ -1,24 +1,27 @@
 package core
 
 type Stack[T any] struct {
-	Current Pos
-	Size    Pos
+	Current  Pos
+	Capacity Pos
 
 	items []T
 }
 
-func NewStack[T any](size Pos) *Stack[T] {
+func NewStack[T any](capacity Pos) *Stack[T] {
 	return &Stack[T]{
-		items:   make([]T, size),
-		Size:    size,
-		Current: 0,
+		items:    make([]T, 16),
+		Capacity: capacity,
+		Current:  0,
 	}
 }
 
 func (s *Stack[T]) Push(items ...T) {
 	for _, item := range items {
-		if s.Current >= s.Size {
+		if s.Current >= s.Capacity {
 			panic("stack overflow")
+		}
+		if int(s.Current) == len(s.items) {
+			s.items = append(s.items, item)
 		}
 
 		s.items[s.Current] = item
@@ -45,7 +48,7 @@ func (s *Stack[T]) Peek() T {
 
 // check whether the stack is invalid (stack over-/underflow)
 func (s *Stack[T]) check() {
-	if s.Current >= s.Size {
+	if s.Current >= s.Capacity {
 		panic("stack underflow")
 	}
 

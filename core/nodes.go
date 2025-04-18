@@ -137,7 +137,8 @@ func (n NumberNode) Bounds() (Pos, Pos) {
 
 // ListNode a list or sequence of values (items)
 type ListNode struct {
-	items []Node
+	items   []Node
+	content TypeSignature
 
 	start Pos
 	end   Pos

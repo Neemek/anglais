@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"github.com/alecthomas/kong"
 	"log"
@@ -226,11 +227,59 @@ func (cmd *CompileCmd) Run(ctx *Context) error {
 	return nil
 }
 
+type ReplCmd struct {
+}
+
+func (cmd *ReplCmd) Run(ctx *Context) error {
+	c := core.NewCompiler([]rune(""))
+	vm := core.NewVM(core.NewChunk([]core.Bytecode{}, []core.Value{}), 256, 256)
+
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		print("> ")
+		src, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+
+		l := core.NewLexer(src)
+		tokens, err := l.Tokenize()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		p := core.NewParser(src, tokens)
+		prog, err := p.Parse("REPL")
+		if err != nil {
+			var e core.FormatedError
+			if errors.As(err, &e) {
+				log.Print(e.Format())
+			}
+			continue
+		}
+
+		c.SetSource(src)
+		if err = c.Compile(prog); err != nil {
+			var e core.FormatedError
+			if errors.As(err, &e) {
+				log.Print(e.Format())
+			}
+			continue
+		}
+
+		vm.SetChunk(c.Chunk)
+		for vm.Next() {
+		}
+	}
+}
+
 var cli struct {
 	Debug bool `short:"D" name:"debug" help:"Enable debug mode."`
 
 	Run     RunCmd     `cmd:"" name:"run" help:"Run program."`
 	Compile CompileCmd `cmd:"" name:"compile" help:"Compile program to bytecode."`
+	Repl    ReplCmd    `cmd:"" name:"repl" help:"Start a REPL loop."`
 }
 
 func main() {
