@@ -1,0 +1,15 @@
+
+MAX_WIDTH := 16
+
+print(" ")
+w := 1
+n := 0x21
+while n < 0xA0 {
+    print(char(n))
+    n = n + 1
+    w = w + 1
+    if w >= MAX_WIDTH {
+        write("")
+        w = 0
+    }
+}

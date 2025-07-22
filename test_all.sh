@@ -38,9 +38,9 @@ done
 
 
 if [ 0 -ne "$(wc -w <<< "${errors[@]}")" ]; then
-  echo "== Errors occured while executing =="
+  echo "=x= Errors occured while executing =x="
   echo "erroring files: $(printf '%s ' "${errors[@]}")"
   exit 1
 else
-  echo '== Successfully ran all tests =='
+  echo '=+= Successfully ran all tests =+='
 fi

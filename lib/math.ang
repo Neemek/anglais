@@ -17,6 +17,24 @@ func abs(x: number) number {
     return x
 }
 
+DERIVE_DX := 0.00000001
+func derive(f: func(number)number, x: number) number {
+    return (f(x + DERIVE_DX) - f(x))/DERIVE_DX
+}
+
+NEWTONS_ACC := 0.000000000001
+func newtons(f: func(number)number) number {
+    pg := 0
+    g := 1
+
+    while abs(g - pg) > NEWTONS_ACC {
+        pg = g
+        g = pg - f(pg) / derive(f, pg)
+    }
+
+    return g
+}
+
 MAX_SQRT_DX := 0.0000001
 
 # sqrt(x)
@@ -42,18 +60,14 @@ func sqrt(x: number) number {
 #   Return the whole number part of the number. if x is a whole number,
 #   the returned value is x. If x is not a whole number, the closest
 #   whole number which is less than or equal to x is returned.
-func floor(x: number) number {
-    # todo
-}
+
 
 # ceil(x)
 # x: number
 #   Return the whole number part of the number. if x is a whole number,
 #   the returned value is x. If x is not a whole number, the closest
 #   whole number which is greater than or equal to x is returned.
-func ceil(x: number) number {
-    # todo
-}
+
 
 # round(x)
 # x: number
@@ -72,7 +86,7 @@ func round(x: number) number {
 # x: number; any number
 # n: number; the number to divide by
 #   Return the rest from a division of x by n.
-func mod(x: number, n: number) {
+func mod(x: number, n: number) number {
     if x == 0 {
         return 0
     }
@@ -136,6 +150,23 @@ func exp(x: number) number {
     }
 }
 
+# ln(x)
+# x: number; any number
+#   Get the approximate value of the natural logarithm
+#   This function uses newton's method to approximate.
+LN_ACC := 0.0000000001
+func ln(x: number) number {
+    pg := 0
+    g := 1
+
+    while abs(pg - g) > LN_ACC {
+        pg = g
+        g = pg + x / exp(pg) - 1
+    }
+
+    return g
+}
+
 # pow(x, p)
 # x: number; any number. The base
 # p: number; the value of the exponent
@@ -144,18 +175,21 @@ func pow(x: number, p: number) number {
     return exp(p*ln(x))
 }
 
-# ln(x)
-# x: number; any number
-#   Get the approximate value of the natural logarithm
-#   This function uses newton's method to approximate.
-LN_ACC := 0.000000001
-func ln(x: number) number {
+# log(x, b)
+# x: number; any number greater than 0
+# b: number; any number as the base
+#   Calculate the approximate value of the logarithm
+#   of a with b as base.
+LOG_ACC := 0.0000001
+func log(a: number, b: number) number {
+    ln_b := ln(b)
+
     pg := 0
     g := 1
 
-    while abs(pg - g) > LN_ACC {
+    while abs(g - pg) > LOG_ACC {
         pg = g
-        g = pg + x / exp(pg) - 1
+        g = pg - 1/ln_b - a/(ln_b*pow(b, pg))
     }
 
     return g

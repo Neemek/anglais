@@ -1,0 +1,24 @@
+
+passphrase := "Hello world!".split("")
+start := [0, 0, 0]
+modulus := 10
+base := byte("!")
+
+i := 0
+n := 0
+while n < passphrase.length() {
+    b := byte(passphrase.at(n))
+
+    v = start.at(i) + b - base
+    while v >= modulus {
+        v = v - modulus
+    }
+
+    start.put(i, v)
+
+    if i >= 3 {
+        i = 0
+    }
+    n = n + 1
+}
+

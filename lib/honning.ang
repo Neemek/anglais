@@ -1,0 +1,15 @@
+
+_bell := char(0x07)
+
+ESC := char(0x1B)
+CSI := ESC + "["
+
+_reset := CSI + "0m"
+_bold := CSI + "1m"
+_faint := CSI + "2m"
+_italic := CSI + "3m"
+_underline := CSI + "4m"
+_slow_blink := CSI + "5m"
+_rapid_blink := CSI + "6m"
+_strike := CSI + "9m"
+_primary_font := CSI + "10m"

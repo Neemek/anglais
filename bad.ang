@@ -1,5 +1,40 @@
-import "lib/list.ang"
+import "lib/math.ang"
 
-write(str(map([1, 2, 3], func(n: number) number {
-    return n*n
-})))
+primes := [2]
+
+func is_prime(x: number) boolean {
+    i := 0
+    while i < primes.length() && primes.at(i)*primes.at(i) < x {
+        if mod(x, primes.at(i)) == 0 {
+            return false
+        }
+        i = i + 1
+    }
+
+    return true
+}
+
+n := 1
+max := 100000
+
+while n < max {
+    n = n + 2
+
+    if is_prime(n) {
+        primes.append(n)
+
+        # Update counter
+        print(char(0x0D))
+        print(str(n))
+        print("/")
+        print(str(max))
+        print(char(0x09))
+        print(str(roundd(n/max*100, 2)))
+        print("%")
+        print(char(0x09))
+        print(str(primes.length()))
+        print(" primes")
+    }
+}
+
+write(str(primes))

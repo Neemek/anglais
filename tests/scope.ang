@@ -4,9 +4,12 @@ a := 2
 {
     a := 3
     assertEq(a, 3)
+    breakpoint
 
     a = 4
     assertEq(a, 4)
+    breakpoint
 }
 
 assertEq(a, 2)
+breakpoint

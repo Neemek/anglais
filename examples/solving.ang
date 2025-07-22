@@ -1,0 +1,13 @@
+import "../lib/math.ang"
+
+a := 120
+b := 10
+
+# find log_b(a)
+func f(x: number)number {
+    return pow(b, x) - a
+}
+
+log_b := newtons(f)
+write(str(log_b))
+write("inverse: "+str(pow(b, log_b))+" = "+str(a))

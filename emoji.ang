@@ -1,0 +1,2 @@
+
+write(char(0x12) + char(0x85) + char(0x07))

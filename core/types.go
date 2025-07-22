@@ -17,6 +17,7 @@ const (
 	TypeFunction
 	TypeAny
 	TypeComposite
+	TypeInner
 )
 
 func (t Type) String() string {
@@ -39,6 +40,8 @@ func (t Type) String() string {
 		return "any"
 	case TypeComposite:
 		return "composite"
+	case TypeInner:
+		return "inner"
 	}
 
 	panic(fmt.Sprintf("unsupported string conversion for type %v", int(t)))
@@ -329,4 +332,18 @@ func (s *CompositeSignature) Matches(other TypeSignature) bool {
 
 func (s *CompositeSignature) String() string {
 	return fmt.Sprintf("%s|%s", s.A, s.B)
+}
+
+type InnerSignature struct{}
+
+func (*InnerSignature) Type() Type {
+	return TypeInner
+}
+
+func (*InnerSignature) Matches(_ TypeSignature) bool {
+	return false
+}
+
+func (*InnerSignature) String() string {
+	return "inner"
 }

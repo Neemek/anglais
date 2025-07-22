@@ -404,10 +404,20 @@ func (c *Compiler) compile(tree Node) error {
 				return c.error(fmt.Sprintf("argument #%d does not have expected type signature: got %s, requires %s", i, sig, f.In[i]), arg)
 			}
 
-			err = c.compile(arg)
-			if err != nil {
-				return err
+			if c.isTreeConstant(arg) {
+				v, err := c.compute(arg)
+				if err != nil {
+					return err
+				}
+				c.add(InstructionConstant)
+				c.addConstant(v)
+			} else {
+				err = c.compile(arg)
+				if err != nil {
+					return err
+				}
 			}
+
 		}
 
 		err = c.compile(n.source)
@@ -716,6 +726,18 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 			return nil, c.error(fmt.Sprintf("bad argument count (expected %v, got %v)", len(f.In), len(n.args)), n)
 		}
 
+		var innerType TypeSignature
+		if n.source.Type() == AccessNodeType {
+			member, err := c.deduceSignature(n.source.(*AccessNode).source)
+			if err != nil {
+				return nil, err
+			}
+
+			if member.Type() == TypeList {
+				innerType = member.(*ListSignature).Contents
+			}
+		}
+
 		// type check arguments
 		for i, arg := range n.args {
 			sig, err := c.deduceSignature(arg)
@@ -723,9 +745,26 @@ func (c *Compiler) deduceSignature(tree Node) (TypeSignature, error) {
 				return nil, err
 			}
 
-			if !sig.Matches(f.In[i]) {
+			t := f.In[i]
+			if t.Type() == TypeInner {
+				if innerType == nil {
+					return nil, c.error(fmt.Sprintf("function source (%s) has no inner type", sig), n.source)
+				}
+
+				t = innerType
+			}
+
+			if !sig.Matches(t) {
 				return nil, c.error(fmt.Sprintf("argument #%d has wrong type signature. requires %s, got %s", i, f.In[i], sig), arg)
 			}
+		}
+
+		if f.Out.Type() == TypeInner {
+			if innerType == nil {
+				return nil, c.error(fmt.Sprintf("function source (%s) has no inner type", sig), n.source)
+			}
+
+			return innerType, nil
 		}
 
 		return f.Out, nil
@@ -954,7 +993,14 @@ func (c *Compiler) isTreeConstant(tree Node) bool {
 		return true
 	case BinaryNodeType:
 		return c.isTreeConstant(tree.(*BinaryNode).Left) && c.isTreeConstant(tree.(*BinaryNode).Right)
-	case BlockNodeType, ConditionalNodeType, LoopNodeType, AssignNodeType, CallNodeType, FunctionNodeType,
+	case CallNodeType:
+		for _, arg := range tree.(*CallNode).args {
+			if !c.isTreeConstant(arg) {
+				return false
+			}
+		}
+		return c.isTreeConstant(tree.(*CallNode).source)
+	case BlockNodeType, ConditionalNodeType, LoopNodeType, AssignNodeType, FunctionNodeType,
 		ReturnNodeType, AccessNodeType, BreakpointNodeType, ReferenceNodeType:
 		return false
 	default:
@@ -1008,6 +1054,31 @@ func (c *Compiler) compute(tree Node) (Value, error) {
 		return &NumberValue{
 			-v.(*NumberValue).Number,
 		}, nil
+
+	case *CallNode:
+		source, err := c.compute(n.source)
+		if err != nil {
+			return nil, err
+		}
+
+		f, ok := source.(*BuiltinFunctionValue)
+		if !ok {
+			return nil, nil
+		}
+
+		if !f.Constant {
+			return nil, nil
+		}
+
+		args := make([]Value, len(f.Signature.In))
+		for i, arg := range n.args {
+			args[i], err = c.compute(arg)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return f.F(nil, nil, args)
 
 	default:
 		panic(fmt.Sprintf("unexpected node %s, %T", tree.String(), tree))

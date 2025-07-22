@@ -1,0 +1,15 @@
+
+func is_cool(x: number|string) boolean {
+    if x == "cool" {
+        return true
+    } else if x == 69 {
+        return true
+    }
+
+    return nil
+}
+
+write(str(is_cool("not cool")))
+write(str(is_cool("cool")))
+write(str(is_cool(0)))
+write(str(is_cool(69)))

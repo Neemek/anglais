@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strings"
 )
@@ -479,6 +480,45 @@ var DefaultGlobals = map[string]Value{
 		nil,
 		false,
 	},
+	"floor": &BuiltinFunctionValue{
+		"floor",
+		&FunctionSignature{
+			[]TypeSignature{&NumberSignature{}},
+			&NumberSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			return &NumberValue{math.Floor(args[0].(*NumberValue).Number)}, nil
+		},
+		nil,
+		true,
+	},
+	"ceil": &BuiltinFunctionValue{
+		"ceil",
+		&FunctionSignature{
+			[]TypeSignature{&NumberSignature{}},
+			&NumberSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			return &NumberValue{math.Ceil(args[0].(*NumberValue).Number)}, nil
+		},
+		nil,
+		true,
+	},
+	"roundd": &BuiltinFunctionValue{
+		"roundd",
+		&FunctionSignature{
+			[]TypeSignature{&NumberSignature{}, &NumberSignature{}},
+			&NumberSignature{},
+		},
+		func(vm *VM, this Value, args []Value) (Value, error) {
+			x := args[0].(*NumberValue).Number
+			decimals := args[1].(*NumberValue).Number
+			multiplier := math.Pow(10, decimals)
+			return &NumberValue{math.Round(x*multiplier) / multiplier}, nil
+		},
+		nil,
+		true,
+	},
 }
 
 func NewVM(chunk *Chunk, stackSize Pos, callstackSize Pos) *VM {
@@ -813,9 +853,7 @@ func (vm *VM) Call(v Value, args []Value) (Value, error) {
 		for vm.chunk.Bytecode[vm.ip] != InstructionReturn && vm.Next() {
 		}
 
-		if vm.HasNext() {
-			vm.Next()
-		}
+		vm.Next()
 
 		return vm.stack.Pop(), nil
 

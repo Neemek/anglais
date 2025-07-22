@@ -1,0 +1,4 @@
+import "lib/honning.ang"
+
+write(_bell+_italic+"Hello "+_underline+"world "+_strike+"micheal"+_reset)
+

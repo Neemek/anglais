@@ -1,15 +1,14 @@
-
-# fibonacci sequence
-func fib(n) {
-    if n <= 1 {
-        return n
-    }
-
-    return fib(n - 1) + fib(n - 2)
+# This program computes the fibonacci numbers using recursion (O(2^n))
+# It is very slow
+func fib(x: number) number {
+	if x <= 1 {
+		return x
+	}
+	return fib(x - 1) + fib(x - 2)
 }
 
 n := 0
-while n < 10 {
-    write(fib(n))
-    n = n + 1
+while n < 100 {
+	write(str(fib(n)))
+	n = n + 1
 }

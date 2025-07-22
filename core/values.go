@@ -434,7 +434,7 @@ var ListPrototype = map[string]*BuiltinFunctionValue{
 			[]TypeSignature{
 				&NumberSignature{},
 			},
-			&AnySignature{},
+			&InnerSignature{},
 		},
 		func(_ *VM, this Value, p []Value) (Value, error) {
 			items := this.(*ListValue).Items

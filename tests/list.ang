@@ -1,4 +1,4 @@
-list := []
+list := []number
 
 x := 1
 while x <= 1000 {
@@ -14,7 +14,7 @@ func sum(a: number, b: number) number {
     return a + b
 }
 
-list = []
+list = []number
 x = 1
 while x <= 100 {
     list.append(2*x - 1)
