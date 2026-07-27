@@ -1,6 +1,6 @@
 # **!IMPORTANT!**
-This repository is outdated; if you would like to view the updated repository (where anglais has a type system and a refactored compiler and parser), check out my [self-hosted repository].(https://git.neemek.com/Neemek/anglais)
-
+This repository is outdated; if you would like to view the updated repository (where anglais has a type system and a refactored compiler and parser), check out my [self-hosted repository](https://git.neemek.com/Neemek/anglais)
+.
 
 # L'anglais
 
